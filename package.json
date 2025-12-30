@@ -1,0 +1,71 @@
+{
+  "name": "harbormaster",
+  "displayName": "Harbormaster",
+  "description": "Project-aware window titles for VS Code.",
+  "version": "0.0.1",
+  "publisher": "harbormaster",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "Project Window Title",
+      "properties": {
+        "projectWindowTitle.configFile": {
+          "type": "string",
+          "default": ".project.json",
+          "description": "Relative path to the config file containing the project name."
+        },
+        "projectWindowTitle.projectNameKey": {
+          "type": "string",
+          "default": "project_name",
+          "description": "JSON key to read from the config file."
+        },
+        "projectWindowTitle.headlessPrefix": {
+          "type": "string",
+          "default": "[Headless] ",
+          "description": "Prefix used when no project name is found."
+        },
+        "projectWindowTitle.namedFormat": {
+          "type": "string",
+          "default": "${projectName}",
+          "description": "Template used when a project name is present."
+        },
+        "projectWindowTitle.showVersion": {
+          "type": "boolean",
+          "default": false,
+          "description": "When true, appends the project version if available."
+        },
+        "projectWindowTitle.projectVersionKey": {
+          "type": "string",
+          "default": "project_version",
+          "description": "JSON key containing the project version."
+        },
+        "projectWindowTitle.versionFormat": {
+          "type": "string",
+          "default": "${projectName} (${projectVersion})",
+          "description": "Template used when showVersion is true and a version is available."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p .",
+    "watch": "tsc -w -p .",
+    "lint": "echo \"No lint configured\"",
+    "test": "echo \"No tests yet\""
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.4.0"
+  }
+}
