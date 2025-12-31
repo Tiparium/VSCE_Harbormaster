@@ -30,9 +30,31 @@ interface ProjectInfo {
   version?: string;
 }
 
+class StatusBarController implements vscode.Disposable {
+  private readonly item: vscode.StatusBarItem;
+
+  constructor() {
+    this.item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
+    this.item.text = '$(symbol-misc) Harbormaster';
+    this.item.command = 'projectWindowTitle.showMenu';
+    this.item.tooltip = 'Harbormaster menu';
+    this.item.show();
+  }
+
+  dispose(): void {
+    this.item.dispose();
+  }
+}
+
 export function activate(context: vscode.ExtensionContext): void {
   const controller = new TitleController();
-  context.subscriptions.push(controller);
+  context.subscriptions.push(
+    controller,
+    vscode.commands.registerCommand('projectWindowTitle.createConfig', () => createProjectConfig()),
+    vscode.commands.registerCommand('projectWindowTitle.openConfig', () => openProjectConfig()),
+    vscode.commands.registerCommand('projectWindowTitle.showMenu', () => showMenu()),
+    new StatusBarController()
+  );
 }
 
 export function deactivate(): void {
@@ -129,6 +151,100 @@ function getExtensionSettings(): ExtensionSettings {
   };
 }
 
+async function createProjectConfig(): Promise<void> {
+  const folder = getPrimaryWorkspaceFolder();
+  if (!folder) {
+    void vscode.window.showErrorMessage('Harbormaster: No workspace folder open.');
+    return;
+  }
+
+  const settings = getExtensionSettings();
+  const targetUri = vscode.Uri.joinPath(folder.uri, settings.configFile);
+
+  const projectName = await vscode.window.showInputBox({
+    prompt: 'Project name (required)',
+    placeHolder: 'My Project',
+    ignoreFocusOut: true,
+    validateInput: (value) => (value.trim().length === 0 ? 'Project name is required' : undefined),
+  });
+  if (projectName === undefined) {
+    return;
+  }
+
+  const projectVersion = await vscode.window.showInputBox({
+    prompt: 'Version (optional, will be stored even if empty)',
+    placeHolder: 'e.g. 1.2.25-alpha',
+    ignoreFocusOut: true,
+  });
+  if (projectVersion === undefined) {
+    return;
+  }
+
+  let exists = false;
+  try {
+    await vscode.workspace.fs.stat(targetUri);
+    exists = true;
+  } catch {
+    exists = false;
+  }
+
+  if (exists) {
+    const overwrite = await vscode.window.showWarningMessage(
+      `${settings.configFile} already exists. Overwrite?`,
+      { modal: true },
+      'Overwrite',
+      'Cancel'
+    );
+    if (overwrite !== 'Overwrite') {
+      return;
+    }
+  }
+
+  const payload = {
+    project_name: projectName.trim(),
+    project_version: (projectVersion ?? '').trim(),
+    version_major: 0,
+    version_minor: 0,
+    version_prerelease: '',
+    version_scheme_note:
+      'version = <major>.<minor>.<YY>-<prerelease>; YY is last two digits of build year (computed automatically); prerelease is optional.',
+  };
+
+  const content = Buffer.from(JSON.stringify(payload, null, 2) + '\n', 'utf8');
+  await vscode.workspace.fs.writeFile(targetUri, content);
+  void vscode.window.showInformationMessage(`Harbormaster: wrote ${settings.configFile}.`);
+}
+
+async function openProjectConfig(): Promise<void> {
+  const folder = getPrimaryWorkspaceFolder();
+  if (!folder) {
+    void vscode.window.showErrorMessage('Harbormaster: No workspace folder open.');
+    return;
+  }
+
+  const settings = getExtensionSettings();
+  const targetUri = vscode.Uri.joinPath(folder.uri, settings.configFile);
+
+  try {
+    await vscode.workspace.fs.stat(targetUri);
+  } catch {
+    const create = await vscode.window.showWarningMessage(
+      `${settings.configFile} does not exist. Create it?`,
+      { modal: true },
+      'Create',
+      'Cancel'
+    );
+    if (create !== 'Create') {
+      return;
+    }
+    await createProjectConfig();
+    return;
+  }
+
+  const doc = await vscode.workspace.openTextDocument(targetUri);
+  await vscode.window.showTextDocument(doc, { preview: false });
+}
+
 async function readProjectInfo(folder: vscode.WorkspaceFolder, settings: ExtensionSettings): Promise<ProjectInfo> {
   const targetUri = vscode.Uri.joinPath(folder.uri, settings.configFile);
 
@@ -199,6 +315,32 @@ function getYearPatch(): number {
 
 function isSemverCompliant(version: string): boolean {
   return /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-.]+)?(?:\+[0-9A-Za-z-.]+)?$/.test(version);
+}
+
+async function showMenu(): Promise<void> {
+  const items: vscode.QuickPickItem[] = [
+    { label: 'Create project config', description: 'Prompt for name/version and write .project.json' },
+    { label: 'Open project config', description: 'Open or create the configured .project.json' },
+  ];
+
+  const selection = await vscode.window.showQuickPick(items, {
+    placeHolder: 'Harbormaster actions',
+    canPickMany: false,
+  });
+
+  if (!selection) {
+    return;
+  }
+
+  if (selection.label === 'Create project config') {
+    await createProjectConfig();
+    return;
+  }
+
+  if (selection.label === 'Open project config') {
+    await openProjectConfig();
+    return;
+  }
 }
 
 function buildTitle(projectInfo: ProjectInfo, settings: ExtensionSettings): string {

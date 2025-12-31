@@ -61,6 +61,16 @@ NODE
 cmd_compile() {
   sync_package_version
   npm run compile
+}
+
+cmd_watch() {
+  sync_package_version
+  npm run watch
+}
+
+cmd_build() {
+  sync_package_version
+  npm run compile
 
   mkdir -p builds
   local version pkgName target choice
@@ -97,12 +107,25 @@ case "$COMMAND" in
   compile)
     cmd_compile
     ;;
-  help|*)
+  watch)
+    cmd_watch
+    ;;
+  build)
+    cmd_build
+    ;;
+  -h|--help|help)
     cat <<'EOF'
 Usage: ./run <command>
 
 Commands:
-  compile   Derive version from .project.json (major.minor.<YY>[-prerelease]), build, and package into ./builds/*.vsix
+  compile   Derive version from .project.json and run a single TypeScript build (no VSIX)
+  watch     Derive version and run tsc in watch mode
+  build     Derive version, run build, and package into ./builds/*.vsix (prompts on conflicts)
+  help      Show this help
 EOF
+    ;;
+  help|*)
+    echo "Unknown command: $COMMAND"
+    echo "Use ./run help to list commands."
     ;;
 esac

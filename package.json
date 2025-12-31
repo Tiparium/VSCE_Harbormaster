@@ -16,10 +16,30 @@
     "Other"
   ],
   "activationEvents": [
-    "onStartupFinished"
+    "onStartupFinished",
+    "onCommand:projectWindowTitle.createConfig",
+    "onCommand:projectWindowTitle.showMenu",
+    "onCommand:projectWindowTitle.openConfig"
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "commands": [
+      {
+        "command": "projectWindowTitle.createConfig",
+        "title": "Harbormaster: Create project config",
+        "category": "Harbormaster"
+      },
+      {
+        "command": "projectWindowTitle.openConfig",
+        "title": "Harbormaster: Open project config",
+        "category": "Harbormaster"
+      },
+      {
+        "command": "projectWindowTitle.showMenu",
+        "title": "Harbormaster: Menu",
+        "category": "Harbormaster"
+      }
+    ],
     "configuration": {
       "title": "Project Window Title",
       "properties": {

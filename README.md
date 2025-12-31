@@ -41,6 +41,20 @@ Create `.project.json` in your repo root:
 - The packaged extension version is derived as `major.minor.<YY>` with `YY` = last two digits of the current year, plus an optional prerelease (default `alpha`).
 - Use `./run compile` to sync the derived version into `package.json`, build, and emit `builds/<name>-<version>.vsix` (prompts if a file already exists).
 
+### Commands
+- `./run compile` — derive version, run a single TypeScript build (no VSIX).
+- `./run watch` — derive version, run TypeScript watch mode.
+- `./run build` — derive version, build, and package into `./builds/*.vsix` (prompts on conflicts).
+- `./run help` — list available commands.
+
+## Quick setup
+
+Use the Command Palette → “Harbormaster: Create project config” to generate `.project.json`. You’ll be prompted for a project name (required) and a version (optional; saved even if left empty). The file is written to the first workspace folder.
+
+## Status bar menu
+
+A Harbormaster status bar item (bottom left) opens a quick menu with actions like creating or opening `.project.json`.
+
 All settings are workspace-scoped; the extension never changes user/global settings.
 
 ## Development
