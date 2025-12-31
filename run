@@ -83,6 +83,41 @@ try {
 NODE
 }
 
+bump_project_major() {
+  node <<'NODE'
+const fs = require('fs');
+const path = '.project.json';
+
+function coerceInt(value, fallback) {
+  if (Number.isInteger(value) && value >= 0) return value;
+  if (typeof value === 'string' && /^[0-9]+$/.test(value)) return Number.parseInt(value, 10);
+  return fallback;
+}
+
+function deriveVersion(cfg) {
+  const major = coerceInt(cfg.version_major, 0);
+  const minor = coerceInt(cfg.version_minor, 0);
+  const prerelease = typeof cfg.version_prerelease === 'string' ? cfg.version_prerelease.trim() : '';
+  const patch = new Date().getFullYear() % 100;
+  const base = `${major}.${minor}.${patch}`;
+  return prerelease ? `${base}-${prerelease}` : base;
+}
+
+try {
+  const raw = fs.readFileSync(path, 'utf8');
+  const cfg = JSON.parse(raw);
+  cfg.version_major = coerceInt(cfg.version_major, 0) + 1;
+  cfg.version_minor = 0;
+  const nextVersion = deriveVersion(cfg);
+  fs.writeFileSync(path, JSON.stringify(cfg, null, 2) + '\n');
+  console.log(`Bumped version_major to ${cfg.version_major}, reset version_minor to 0 (next version ${nextVersion})`);
+} catch (error) {
+  console.error('Failed to bump version_major:', error.message || error);
+  process.exit(1);
+}
+NODE
+}
+
 sync_package_version() {
   local version
   version="$(get_project_version)" || err "Could not derive project version from .project.json"
@@ -171,6 +206,9 @@ case "$COMMAND" in
   build)
     cmd_build
     ;;
+  major_update)
+    bump_project_major
+    ;;
   -h|--help|help)
     cat <<'EOF'
 Usage: ./run <command>
@@ -179,6 +217,7 @@ Commands:
   compile [dev|prod]   Derive version from .project.json and run a single TypeScript build (no VSIX). Defaults to dev mode.
   watch [dev|prod]     Derive version and run tsc in watch mode. Defaults to dev mode.
   build [dev|prod]     Auto-bump version_minor, derive version, build, and package into ./builds/*.vsix (prompts on conflicts). Defaults to prod mode.
+  major_update         Bump version_major and reset version_minor to 0 (writes .project.json)
   help      Show this help
 EOF
     ;;
