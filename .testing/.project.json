@@ -1,4 +1,7 @@
 {
   "project_name": "Harbormaster Project Testing Window",
-  "project_version": "0.00.25"
+  "version_major": 0,
+  "version_minor": 0,
+  "version_prerelease": "alpha",
+  "version_scheme_note": "version = <major>.<minor>.<YY>-<prerelease>; YY is last two digits of build year (computed automatically); prerelease is optional."
 }

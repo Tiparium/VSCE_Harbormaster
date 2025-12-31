@@ -2,7 +2,7 @@
   "name": "harbormaster",
   "displayName": "Harbormaster",
   "description": "Project-aware window titles for VS Code.",
-  "version": "0.0.1",
+  "version": "0.0.25-alpha",
   "publisher": "harbormaster",
   "engines": {
     "vscode": "^1.85.0"
@@ -47,6 +47,21 @@
           "type": "string",
           "default": "project_version",
           "description": "JSON key containing the project version."
+        },
+        "projectWindowTitle.projectVersionMajorKey": {
+          "type": "string",
+          "default": "version_major",
+          "description": "JSON key containing the major component for derived versions."
+        },
+        "projectWindowTitle.projectVersionMinorKey": {
+          "type": "string",
+          "default": "version_minor",
+          "description": "JSON key containing the minor component for derived versions."
+        },
+        "projectWindowTitle.projectVersionPrereleaseKey": {
+          "type": "string",
+          "default": "version_prerelease",
+          "description": "JSON key containing the prerelease label for derived versions (optional)."
         },
         "projectWindowTitle.versionFormat": {
           "type": "string",

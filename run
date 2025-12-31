@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+COMMAND="${1:-help}"
+
+err() { echo "Error: $*" >&2; exit 1; }
+
+get_project_version() {
+  node <<'NODE'
+const fs = require('fs');
+const path = '.project.json';
+
+function coerceInt(value, fallback) {
+  if (Number.isInteger(value) && value >= 0) return value;
+  if (typeof value === 'string' && /^[0-9]+$/.test(value)) return Number.parseInt(value, 10);
+  return fallback;
+}
+
+function deriveVersion(cfg) {
+  const major = coerceInt(cfg.version_major, 0);
+  const minor = coerceInt(cfg.version_minor, 0);
+  const prerelease = typeof cfg.version_prerelease === 'string' ? cfg.version_prerelease.trim() : '';
+  const patch = new Date().getFullYear() % 100;
+  const base = `${major}.${minor}.${patch}`;
+  return prerelease ? `${base}-${prerelease}` : base;
+}
+
+try {
+  const raw = fs.readFileSync(path, 'utf8');
+  const cfg = JSON.parse(raw);
+  const version = deriveVersion(cfg);
+  if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-.]+)?(?:\+[0-9A-Za-z-.]+)?$/.test(version)) {
+    process.exit(1);
+  }
+  console.log(version);
+} catch (error) {
+  process.exit(1);
+}
+NODE
+}
+
+sync_package_version() {
+  local version
+  version="$(get_project_version)" || err "Could not derive project version from .project.json"
+  VERSION="$version" node <<'NODE'
+const fs = require('fs');
+const pkgPath = 'package.json';
+const version = process.env.VERSION;
+const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+if (pkg.version !== version) {
+  pkg.version = version;
+  fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
+  console.log(`Updated package.json version to ${version}`);
+} else {
+  console.log(`package.json version already ${version}`);
+}
+console.log(`Using extension name: ${pkg.name}`);
+NODE
+}
+
+cmd_compile() {
+  sync_package_version
+  npm run compile
+
+  mkdir -p builds
+  local version pkgName target choice
+  version="$(get_project_version)" || err "project_version not found in .project.json"
+  pkgName="$(node -p "require('./package.json').name")"
+  target="builds/${pkgName}-${version}.vsix"
+
+  if [[ -f "$target" ]]; then
+    echo "VSIX already exists: $target"
+    read -r -p "Overwrite (o/O), Keep both (k/K), or cancel (other)? " choice
+    case "$choice" in
+      o|O)
+        rm -f "$target"
+        ;;
+      k|K)
+        local idx=1 alt
+        while :; do
+          alt="builds/${pkgName}-${version}-${idx}.vsix"
+          [[ -f "$alt" ]] || { target="$alt"; break; }
+          idx=$((idx+1))
+        done
+        ;;
+      *)
+        echo "Canceled."
+        exit 1
+        ;;
+    esac
+  fi
+
+  npx vsce package -o "$target"
+}
+
+case "$COMMAND" in
+  compile)
+    cmd_compile
+    ;;
+  help|*)
+    cat <<'EOF'
+Usage: ./run <command>
+
+Commands:
+  compile   Derive version from .project.json (major.minor.<YY>[-prerelease]), build, and package into ./builds/*.vsix
+EOF
+    ;;
+esac

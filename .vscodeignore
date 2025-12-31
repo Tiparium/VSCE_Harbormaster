@@ -4,3 +4,4 @@ out/test/**
 src/**
 **/*.map
 .context/**
+builds/**
