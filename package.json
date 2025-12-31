@@ -2,7 +2,7 @@
   "name": "harbormaster",
   "displayName": "Harbormaster",
   "icon": "resources/harbormaster.png",
-  "description": "Project-aware window titles for VS Code.",
+  "description": "Project-aware window titles with a lightweight project tracker and quick actions.",
   "version": "0.2.25-alpha",
   "publisher": "harbormaster",
   "repository": {
