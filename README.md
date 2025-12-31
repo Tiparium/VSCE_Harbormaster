@@ -1,69 +1,50 @@
 # Harbormaster
 
-Project-aware VS Code window titles. If a repo defines a `project_name`, the window title becomes exactly that name. Otherwise the title is prefixed with `[Headless] ` while keeping the user’s normal title template.
+Harbormaster keeps your VS Code window title in sync with your project name (and optional version) so you always know which repo is in focus.
 
-## How it works
+## What it does
+- Reads a small config (`.project.json` by default) from your workspace.
+- Sets the workspace-scoped `window.title` to the project name you provide.
+- Optionally appends the project version.
+- Watches the config and workspace settings so the title stays fresh.
+- Provides status bar and Activity Bar shortcuts to create or open the config.
 
-1. On startup Harbormaster reads a JSON config file in the first workspace folder (default: `.project.json` with `project_name`).
-2. When a project name exists, the extension writes a workspace-scoped `window.title` matching that name (saved in `.vscode/settings.json` or the workspace file).
-3. If no project name is found, it prefixes `[Headless] ` to the user’s window title template. If the user has no custom title, it falls back to `${dirty}${activeEditorShort}${separator}${rootName}${separator}${appName}`.
-4. The extension watches the config file and workspace changes to keep the title up to date.
+## Quick start
+1. Command Palette → **Harbormaster: Create project config**.
+2. Enter a project name (required) and version info (optional).
+3. Harbormaster writes `.project.json` to your first workspace folder and updates the window title immediately.
+4. Use **Harbormaster: Refresh window title** if you edit the config manually.
 
-## Default config file
-
-Create `.project.json` in your repo root:
-
+### Config format (default)
 ```json
 {
   "project_name": "Human-Readable Project Name",
   "version_major": 0,
   "version_minor": 0,
-  "version_prerelease": "alpha",
-  "version_scheme_note": "version = <major>.<minor>.<YY>-<prerelease>; YY is last two digits of build year (computed automatically); prerelease is optional."
+  "version_prerelease": "alpha"
 }
 ```
 
-## Settings
+## Commands
+- **Harbormaster: Create project config** — prompt for name/version and write `.project.json`.
+- **Harbormaster: Open project config** — open the config file.
+- **Harbormaster: Refresh window title** — re-read config and update the title.
+- **Harbormaster: Menu** — quick access to the above actions.
 
-- `projectWindowTitle.configFile` (default `.project.json`): Relative path to the config file.
-- `projectWindowTitle.projectNameKey` (default `project_name`): JSON key containing the project name.
-- `projectWindowTitle.projectVersionKey` (default `project_version`): JSON key containing the project version.
-- `projectWindowTitle.projectVersionMajorKey` (default `version_major`): JSON key for the major component when deriving versions.
-- `projectWindowTitle.projectVersionMinorKey` (default `version_minor`): JSON key for the minor component when deriving versions.
-- `projectWindowTitle.projectVersionPrereleaseKey` (default `version_prerelease`): JSON key for the prerelease label when deriving versions.
-- `projectWindowTitle.showVersion` (default `false`): When true, include the project version if present.
-- `projectWindowTitle.versionFormat` (default `${projectName} (${projectVersion})`): Template used when `showVersion` is enabled.
-- `projectWindowTitle.headlessPrefix` (default `[Headless] `): Prefix when no project name is present.
-- `projectWindowTitle.namedFormat` (default `${projectName}`): Template used when a project name is found.
+## Settings (workspace-scoped)
+- `projectWindowTitle.configFile` — relative path to the config file (default `.project.json`).
+- `projectWindowTitle.projectNameKey` — JSON key for the project name (default `project_name`).
+- `projectWindowTitle.showVersion` — append version when available (default `false`).
+- `projectWindowTitle.versionFormat` — template for name + version (default `${projectName} (${projectVersion})`).
+- `projectWindowTitle.headlessPrefix` — prefix when no name is found (default `[Headless] `).
+- `projectWindowTitle.namedFormat` — template when a name is present (default `${projectName}`).
+- Additional version key settings are available for derived versions: `projectVersionKey`, `projectVersionMajorKey`, `projectVersionMinorKey`, `projectVersionPrereleaseKey`.
 
-## Versioning and packaging
+## UI entry points
+- Status bar item (bottom left): opens the Harbormaster menu.
+- Activity Bar view: quick actions to create/open config and refresh the title.
 
-- The packaged extension version is derived as `major.minor.<YY>` with `YY` = last two digits of the current year, plus an optional prerelease (default `alpha`).
-- Use `./run build` to sync the derived version into `package.json`, build, and emit `builds/<name>-<version>.vsix` (prompts if a file already exists).
-
-### Commands
-- `./run compile` — derive version, run a single TypeScript build (no VSIX).
-- `./run watch` — derive version, run TypeScript watch mode.
-- `./run build` — derive version, build, and package into `./builds/*.vsix` (prompts on conflicts).
-- `./run help` — list available commands.
-
-## Quick setup
-
-Use the Command Palette → “Harbormaster: Create project config” to generate `.project.json`. You’ll be prompted for a project name (required) and a version (optional; saved even if left empty). The file is written to the first workspace folder.
-
-## Status bar menu
-
-A Harbormaster status bar item (bottom left) opens a quick menu with actions like creating or opening `.project.json`.
-
-## Activity Bar
-
-Harbormaster adds an Activity Bar icon with an “Harbormaster” view. It lists quick actions (create/open config, refresh title, menu) for easy access.
-
-All settings are workspace-scoped; the extension never changes user/global settings.
-
-## Development
-
-- `npm run compile` — build once
-- `npm run watch` — watch-mode build
-
-Activate with the `Run Extension` launch config in VS Code or by pressing F5 from this folder.
+## Notes
+- All settings are workspace-scoped; Harbormaster never changes your user/global settings.
+- The packaged extension version is derived from `.project.json` as `major.minor.<YY>[-prerelease]` to keep Marketplace-friendly SemVer.
+- Optional projects database: on first run you can create a Harbormaster projects DB (stored locally). New projects are added automatically, and you can open saved projects from the Harbormaster menu/view or reconnect if a project was moved.

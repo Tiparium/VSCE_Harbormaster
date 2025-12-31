@@ -3,7 +3,7 @@
   "displayName": "Harbormaster",
   "icon": "resources/harbormaster.png",
   "description": "Project-aware window titles for VS Code.",
-  "version": "0.2.25-alpha",
+  "version": "0.8.25-alpha",
   "publisher": "harbormaster",
   "repository": {
     "type": "git",
@@ -60,6 +60,27 @@
         "command": "projectWindowTitle.refresh",
         "title": "Harbormaster: Refresh window title",
         "category": "Harbormaster"
+      },
+      {
+        "command": "projectWindowTitle.createDatabase",
+        "title": "Harbormaster: Create projects database",
+        "category": "Harbormaster"
+      },
+      {
+        "command": "projectWindowTitle.openProjectFromDatabase",
+        "title": "Harbormaster: Open project from database",
+        "category": "Harbormaster"
+      },
+      {
+        "command": "projectWindowTitle.reconnectProject",
+        "title": "Harbormaster: Reconnect current project to database",
+        "category": "Harbormaster"
+      },
+      {
+        "command": "projectWindowTitle.devBatman",
+        "title": "Harbormaster (Dev): Scramble project path",
+        "category": "Harbormaster",
+        "enablement": "harbormaster.devMode"
       }
     ],
     "configuration": {
@@ -129,5 +150,8 @@
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.85.0",
     "typescript": "^5.4.0"
+  },
+  "dependencies": {
+    "vsce": "^2.15.0"
   }
 }
