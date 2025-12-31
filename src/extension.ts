@@ -46,6 +46,33 @@ class StatusBarController implements vscode.Disposable {
   }
 }
 
+class ActionTreeProvider implements vscode.TreeDataProvider<ActionTreeItem> {
+  private readonly _onDidChangeTreeData = new vscode.EventEmitter<ActionTreeItem | undefined | null | void>();
+  readonly onDidChangeTreeData: vscode.Event<void | ActionTreeItem | ActionTreeItem[] | null | undefined> =
+    this._onDidChangeTreeData.event;
+
+  getTreeItem(element: ActionTreeItem): vscode.TreeItem {
+    return element;
+  }
+
+  getChildren(): ActionTreeItem[] {
+    return [
+      new ActionTreeItem('Create project config', 'projectWindowTitle.createConfig', 'file-add'),
+      new ActionTreeItem('Open project config', 'projectWindowTitle.openConfig', 'go-to-file'),
+      new ActionTreeItem('Refresh window title', 'projectWindowTitle.refresh', 'refresh'),
+      new ActionTreeItem('Menu', 'projectWindowTitle.showMenu', 'list-unordered'),
+    ];
+  }
+}
+
+class ActionTreeItem extends vscode.TreeItem {
+  constructor(label: string, commandId: string, iconId: string) {
+    super(label, vscode.TreeItemCollapsibleState.None);
+    this.command = { command: commandId, title: label };
+    this.iconPath = new vscode.ThemeIcon(iconId);
+  }
+}
+
 export function activate(context: vscode.ExtensionContext): void {
   const controller = new TitleController();
   context.subscriptions.push(
@@ -53,7 +80,9 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('projectWindowTitle.createConfig', () => createProjectConfig()),
     vscode.commands.registerCommand('projectWindowTitle.openConfig', () => openProjectConfig()),
     vscode.commands.registerCommand('projectWindowTitle.showMenu', () => showMenu()),
-    new StatusBarController()
+    vscode.commands.registerCommand('projectWindowTitle.refresh', () => controller.refresh()),
+    new StatusBarController(),
+    vscode.window.registerTreeDataProvider('harbormasterActions', new ActionTreeProvider())
   );
 }
 
@@ -92,7 +121,7 @@ class TitleController implements vscode.Disposable {
     this.watcher = undefined;
   }
 
-  private async refresh(): Promise<void> {
+  async refresh(): Promise<void> {
     this.resetWatcher();
 
     const folder = getPrimaryWorkspaceFolder();

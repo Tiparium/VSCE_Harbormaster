@@ -1,8 +1,9 @@
 {
   "name": "harbormaster",
   "displayName": "Harbormaster",
+  "icon": "resources/harbormaster.png",
   "description": "Project-aware window titles for VS Code.",
-  "version": "0.0.25-alpha",
+  "version": "0.2.25-alpha",
   "publisher": "harbormaster",
   "repository": {
     "type": "git",
@@ -16,13 +17,29 @@
     "Other"
   ],
   "activationEvents": [
-    "onStartupFinished",
-    "onCommand:projectWindowTitle.createConfig",
-    "onCommand:projectWindowTitle.showMenu",
-    "onCommand:projectWindowTitle.openConfig"
+    "onStartupFinished"
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "harbormaster",
+          "title": "Harbormaster",
+          "icon": "resources/harbormaster.png"
+        }
+      ]
+    },
+    "views": {
+      "harbormaster": [
+        {
+          "id": "harbormasterActions",
+          "name": "Harbormaster",
+          "contextualTitle": "Harbormaster",
+          "icon": "resources/harbormaster.png"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "projectWindowTitle.createConfig",
@@ -37,6 +54,11 @@
       {
         "command": "projectWindowTitle.showMenu",
         "title": "Harbormaster: Menu",
+        "category": "Harbormaster"
+      },
+      {
+        "command": "projectWindowTitle.refresh",
+        "title": "Harbormaster: Refresh window title",
         "category": "Harbormaster"
       }
     ],
