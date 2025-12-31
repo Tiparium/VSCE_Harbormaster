@@ -8,7 +8,14 @@ err() { echo "Error: $*" >&2; exit 1; }
 
 resolve_mode() {
   local default_mode="$1"
-  local mode="${MODE:-$default_mode}"
+  local mode
+  if [[ -n "${MODE:-}" ]]; then
+    mode="$MODE"
+  elif [[ -n "$default_mode" ]]; then
+    mode="$default_mode"
+  else
+    err "Mode required. Use dev or prod."
+  fi
   if [[ "$mode" != "dev" && "$mode" != "prod" ]]; then
     err "Unknown mode '$mode'. Use dev or prod."
   fi
@@ -159,8 +166,12 @@ cmd_watch() {
 
 cmd_build() {
   local mode
-  mode="$(resolve_mode "prod")"
-  bump_project_minor
+  mode="$(resolve_mode "")"
+  if [[ "$mode" == "prod" ]]; then
+    bump_project_minor
+  else
+    echo "Skipping version bump in dev mode."
+  fi
   sync_package_version
   local version pkgName target choice
   version="$(get_project_version)" || err "project_version not found in .project.json"
@@ -169,28 +180,49 @@ cmd_build() {
 
   mkdir -p builds
   pkgName="$(node -p "require('./package.json').name")"
-  target="builds/${pkgName}-${version}.vsix"
+  target="builds/${pkgName}-${version}-${mode}.vsix"
 
   if [[ -f "$target" ]]; then
     echo "VSIX already exists: $target"
-    read -r -p "Overwrite (o/O), Keep both (k/K), or cancel (other)? " choice
-    case "$choice" in
-      o|O)
-        rm -f "$target"
-        ;;
-      k|K)
-        local idx=1 alt
-        while :; do
-          alt="builds/${pkgName}-${version}-${idx}.vsix"
-          [[ -f "$alt" ]] || { target="$alt"; break; }
-          idx=$((idx+1))
-        done
-        ;;
-      *)
-        echo "Canceled."
-        exit 1
-        ;;
-    esac
+    if [[ "$mode" == "dev" ]]; then
+      read -r -p "Overwrite (default), Keep both (k/K), or cancel (c/C/other)? " choice
+      case "$choice" in
+        ""|o|O)
+          rm -f "$target"
+          ;;
+        k|K)
+          local idx=1 alt
+          while :; do
+            alt="builds/${pkgName}-${version}-${mode}-${idx}.vsix"
+            [[ -f "$alt" ]] || { target="$alt"; break; }
+            idx=$((idx+1))
+          done
+          ;;
+        *)
+          echo "Canceled."
+          exit 1
+          ;;
+      esac
+    else
+      read -r -p "Cancel (default), overwrite (o/O), or keep both (k/K)? " choice
+      case "$choice" in
+        o|O)
+          rm -f "$target"
+          ;;
+        k|K)
+          local idx=1 alt
+          while :; do
+            alt="builds/${pkgName}-${version}-${mode}-${idx}.vsix"
+            [[ -f "$alt" ]] || { target="$alt"; break; }
+            idx=$((idx+1))
+          done
+          ;;
+        *)
+          echo "Canceled."
+          exit 1
+          ;;
+      esac
+    fi
   fi
 
   npx vsce package -o "$target"
@@ -216,7 +248,7 @@ Usage: ./run <command>
 Commands:
   compile [dev|prod]   Derive version from .project.json and run a single TypeScript build (no VSIX). Defaults to dev mode.
   watch [dev|prod]     Derive version and run tsc in watch mode. Defaults to dev mode.
-  build [dev|prod]     Auto-bump version_minor, derive version, build, and package into ./builds/*.vsix (prompts on conflicts). Defaults to prod mode.
+  build <dev|prod>     Derive version, build, and package into ./builds/*.vsix (prompts on conflicts). Requires explicit mode; prod auto-bumps version_minor, dev skips bump.
   major_update         Bump version_major and reset version_minor to 0 (writes .project.json)
   help      Show this help
 EOF

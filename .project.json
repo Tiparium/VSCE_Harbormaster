@@ -1,7 +1,7 @@
 {
   "project_name": "Harbormaster",
   "version_major": 1,
-  "version_minor": 1,
+  "version_minor": 2,
   "version_prerelease": "alpha",
   "version_scheme_note": "version = <major>.<minor>.<YY>-<prerelease>; YY is last two digits of build year (computed automatically); prerelease is optional."
 }
