@@ -1,4 +1,0 @@
-Append notable decisions here (date, decision, reason, impact/files). New entries go at the bottom.
-
-2025-12-30 — Decision: Scaffolded Harbormaster as a TypeScript VS Code extension targeting VS Code 1.85+ and writing workspace-scoped window titles from a repo-local config. Reason: Meets requirement for cross-platform, project-aware titles without OS hacks. Impact: Added package.json, tsconfig.json, src/extension.ts, README.md, CHANGELOG.md, .gitignore, .vscodeignore.
-2025-12-30 — Decision: Add optional version display from `project_version` gated by `projectWindowTitle.showVersion` (default off) and store project info in `.project.json`. Reason: User wants project named Harbormaster version 0.00.25 with version opt-in. Impact: Updated src/extension.ts, package.json settings, README.md, .project.json.
