@@ -8,3 +8,4 @@ builds
 agents.md
 .project.json
 .harbormaster/
+.DS_Store
