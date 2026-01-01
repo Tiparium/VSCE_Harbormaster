@@ -280,12 +280,12 @@ class ProjectTracker implements vscode.Disposable {
 
   async openProjectFromCatalog(): Promise<void> {
     const folder = getPrimaryWorkspaceFolder();
-    if (!folder) {
-      void vscode.window.showErrorMessage('Harbormaster: No workspace folder open.');
-      return;
-    }
-    await this.ensureInitialized();
     const settings = getExtensionSettings();
+    if (folder) {
+      await this.ensureInitialized();
+    } else {
+      await this.ensureCatalogFile(settings);
+    }
     const catalogUri = this.getCatalogUri(settings);
     const catalog = await this.readCatalog(catalogUri);
     if (catalog.length === 0) {
