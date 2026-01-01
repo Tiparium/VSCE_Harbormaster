@@ -65,6 +65,7 @@ class ProjectTracker implements vscode.Disposable {
   readonly onDidChange = this.onDidChangeEmitter.event;
   private disposables: vscode.Disposable[] = [];
   private initialized = false;
+  private watchers: vscode.FileSystemWatcher[] = [];
 
   constructor(private readonly context: vscode.ExtensionContext) {
     void this.ensureInitialized();
@@ -73,6 +74,7 @@ class ProjectTracker implements vscode.Disposable {
   dispose(): void {
     this.onDidChangeEmitter.dispose();
     this.disposables.forEach((item) => item.dispose());
+    this.watchers.forEach((w) => w.dispose());
   }
 
   async ensureInitialized(): Promise<void> {
@@ -88,6 +90,7 @@ class ProjectTracker implements vscode.Disposable {
     const settings = getExtensionSettings();
     await this.migrateLegacyConfig(folder, settings);
     await this.ensureTagsFile(folder, settings);
+    this.registerWatchers(folder, settings);
     this.initialized = true;
   }
 
@@ -337,6 +340,25 @@ class ProjectTracker implements vscode.Disposable {
 
   private async ensureDirectory(targetUri: vscode.Uri): Promise<void> {
     await ensureDirectoryForFile(targetUri);
+  }
+
+  private registerWatchers(folder: vscode.WorkspaceFolder, settings: ExtensionSettings): void {
+    const patterns = [
+      new vscode.RelativePattern(folder, settings.configFile),
+      new vscode.RelativePattern(folder, settings.tagsFile),
+      new vscode.RelativePattern(folder, LEGACY_CONFIG_FILE),
+    ];
+
+    for (const pattern of patterns) {
+      const watcher = vscode.workspace.createFileSystemWatcher(pattern);
+      this.watchers.push(watcher);
+      this.disposables.push(
+        watcher,
+        watcher.onDidChange(() => this.onDidChangeEmitter.fire()),
+        watcher.onDidCreate(() => this.onDidChangeEmitter.fire()),
+        watcher.onDidDelete(() => this.onDidChangeEmitter.fire())
+      );
+    }
   }
 }
 

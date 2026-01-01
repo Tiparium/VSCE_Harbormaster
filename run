@@ -2,10 +2,17 @@
 set -euo pipefail
 
 COMMAND="${1:-help}"
-MODE="${2:-}"
+SUBCOMMAND="${2:-}"
+MODE="${3:-}"
 CONFIG_FILE=".harbormaster/project.json"
 
 err() { echo "Error: $*" >&2; exit 1; }
+
+# Normalize args: commands without subcommands treat $2 as mode if $3 not provided.
+if [[ "$COMMAND" != "cleanup" && -n "$SUBCOMMAND" && -z "$MODE" ]]; then
+  MODE="$SUBCOMMAND"
+  SUBCOMMAND=""
+fi
 
 resolve_config_path() {
   local primary="$CONFIG_FILE"
@@ -194,6 +201,59 @@ console.log(`Using extension name: ${pkg.name}`);
 NODE
 }
 
+cleanup_builds() {
+  local builds_dir="builds"
+  if [[ ! -d "$builds_dir" ]]; then
+    echo "No builds directory found."
+    return
+  fi
+
+  shopt -s nullglob
+  local files=("$builds_dir"/*)
+  shopt -u nullglob
+  if [[ ${#files[@]} -eq 0 ]]; then
+    echo "No build artifacts to move."
+    return
+  fi
+
+  local today
+  today="$(date +%Y-%m-%d)"
+  local dest_dir="${builds_dir}/Harbormaster_Builds_${today}"
+  mkdir -p "$dest_dir"
+
+  for src in "${files[@]}"; do
+    if [[ -d "$src" ]]; then
+      continue
+    fi
+    local filename
+    filename="$(basename "$src")"
+    local dest="${dest_dir}/${filename}"
+    if [[ -f "$dest" ]]; then
+      echo "File exists: ${dest}"
+      read -r -p "Overwrite (o/O), keep both (default), or cancel (c/C)? " choice
+      case "$choice" in
+        o|O)
+          rm -f "$dest"
+          ;;
+        c|C)
+          echo "Canceled."
+          return
+          ;;
+        *)
+          local idx=1 alt
+          while :; do
+            alt="${dest_dir}/${filename%.*}-${idx}.${filename##*.}"
+            [[ -f "$alt" ]] || { dest="$alt"; break; }
+            idx=$((idx+1))
+          done
+          ;;
+      esac
+    fi
+    mv "$src" "$dest"
+    echo "Moved $(basename "$src") -> $dest_dir/"
+  done
+}
+
 cmd_compile() {
   local mode
   mode="$(resolve_mode "dev")"
@@ -288,6 +348,24 @@ case "$COMMAND" in
   build)
     cmd_build
     ;;
+  cleanup)
+    case "$SUBCOMMAND" in
+      builds)
+        cleanup_builds
+        ;;
+      ""|-h|--help|help)
+        cat <<'EOF'
+Usage: ./run cleanup <subcommand>
+
+Subcommands:
+  builds   Move all files in ./builds into ./builds/Harbormaster_Builds_<YYYY-MM-DD>/, prompting on conflicts (default keep both).
+EOF
+        ;;
+      *)
+        err "Unknown cleanup subcommand: $SUBCOMMAND"
+        ;;
+    esac
+    ;;
   major_update)
     bump_project_major
     ;;
@@ -299,6 +377,7 @@ Commands:
   compile [dev|prod]   Derive version from .project.json and run a single TypeScript build (no VSIX). Defaults to dev mode.
   watch [dev|prod]     Derive version and run tsc in watch mode. Defaults to dev mode.
   build <dev|prod>     Derive version, build, and package into ./builds/*.vsix (prompts on conflicts). Requires explicit mode. Prod auto-bumps version_minor; dev skips bump. Filename includes mode.
+  cleanup <subcmd>     Run cleanup helpers (e.g., `cleanup builds` to archive build artifacts).
   major_update         Bump version_major and reset version_minor to 0 (writes .project.json)
   help      Show this help
 EOF
