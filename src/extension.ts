@@ -96,6 +96,15 @@ class ProjectTracker implements vscode.Disposable {
     return dedupeTags(rawTags);
   }
 
+  async getCurrentProjectInfo(settings: ExtensionSettings): Promise<ProjectInfo | undefined> {
+    const folder = getPrimaryWorkspaceFolder();
+    if (!folder) {
+      return undefined;
+    }
+    await this.ensureInitialized();
+    return readProjectInfo(folder, settings, this);
+  }
+
   async addGlobalTag(): Promise<void> {
     const folder = getPrimaryWorkspaceFolder();
     if (!folder) {
@@ -331,8 +340,8 @@ class ProjectTracker implements vscode.Disposable {
   }
 }
 
-class ActionTreeProvider implements vscode.TreeDataProvider<ActionTreeItem> {
-  private readonly _onDidChangeTreeData = new vscode.EventEmitter<ActionTreeItem | undefined | null | void>();
+class ActionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
+  private readonly _onDidChangeTreeData = new vscode.EventEmitter<TreeNode | undefined | null | void>();
   readonly onDidChangeTreeData: vscode.Event<void | TreeNode | TreeNode[] | null | undefined> =
     this._onDidChangeTreeData.event;
   private readonly tracker: ProjectTracker;
@@ -367,28 +376,60 @@ class ActionTreeProvider implements vscode.TreeDataProvider<ActionTreeItem> {
     const configExists = folder ? await fileExists(vscode.Uri.joinPath(folder.uri, settings.configFile)) : false;
     const tagsExists = folder ? await fileExists(vscode.Uri.joinPath(folder.uri, settings.tagsFile)) : false;
 
+    const info = await this.tracker.getCurrentProjectInfo(settings);
+    const infoItems: ActionTreeItem[] = [
+      new ActionTreeItem(`Name: ${info?.name ?? 'Not set'}`, '', 'account'),
+      new ActionTreeItem(`Version: ${info?.version ?? 'Not set'}`, '', 'versions'),
+      new ActionTreeItem(`Tags: ${info?.tags && info.tags.length ? info.tags.join(', ') : 'None'}`, '', 'tag'),
+    ].map((item) => {
+      item.contextValue = 'infoItem';
+      item.command = undefined;
+      return item;
+    });
+
     const projectItems: ActionTreeItem[] = [
       configExists
         ? new ActionTreeItem('Open project config', 'projectWindowTitle.openConfig', 'go-to-file')
         : new ActionTreeItem('Create project config', 'projectWindowTitle.createConfig', 'file-add'),
       new ActionTreeItem('Refresh window title', 'projectWindowTitle.refresh', 'refresh'),
-      new ActionTreeItem('Menu', 'projectWindowTitle.showMenu', 'list-unordered'),
     ];
 
-    const tagItems: ActionTreeItem[] = [
+    const globalTagItems: ActionTreeItem[] = [
       new ActionTreeItem('Add global tag', 'projectWindowTitle.addGlobalTag', 'add'),
+      ...(tagsExists
+        ? [new ActionTreeItem('Remove global tag', 'projectWindowTitle.removeGlobalTag', 'trash')]
+        : []),
     ];
 
-    if (tagsExists) {
-      tagItems.push(
-        new ActionTreeItem('Assign tag to project', 'projectWindowTitle.assignTag', 'tag'),
-        new ActionTreeItem('Remove global tag', 'projectWindowTitle.removeGlobalTag', 'trash'),
-        new ActionTreeItem('Remove tag from project', 'projectWindowTitle.removeProjectTag', 'discard')
-      );
-    }
+    const projectTagItems: ActionTreeItem[] = tagsExists
+      ? [
+          new ActionTreeItem('Assign tag to project', 'projectWindowTitle.assignTag', 'tag'),
+          new ActionTreeItem('Remove tag from project', 'projectWindowTitle.removeProjectTag', 'discard'),
+        ]
+      : [];
 
-    sections.push(new SectionTreeItem('Project', projectItems));
-    sections.push(new SectionTreeItem('Tags', tagItems));
+    const utilityItems: ActionTreeItem[] = [
+      new ActionTreeItem('Command palette (menu)', 'projectWindowTitle.showMenu', 'list-selection'),
+    ];
+
+    sections.push(new SectionTreeItem('Info', infoItems, 'info'));
+    sections.push(new SectionTreeItem('Project', projectItems, 'briefcase'));
+    sections.push(
+      new SectionTreeItem(
+        'Tags',
+        [
+          new SectionTreeItem('Global tags', globalTagItems, 'organization', vscode.TreeItemCollapsibleState.Expanded),
+          new SectionTreeItem(
+            'Project tags',
+            projectTagItems.length ? projectTagItems : [new ActionTreeItem('No tags assigned', '', 'tag')],
+            'tag',
+            vscode.TreeItemCollapsibleState.Expanded
+          ),
+        ],
+        'tag'
+      )
+    );
+    sections.push(new SectionTreeItem('Utility', utilityItems, 'settings-gear', vscode.TreeItemCollapsibleState.Collapsed));
 
     return sections;
   }
@@ -405,9 +446,15 @@ class ActionTreeItem extends vscode.TreeItem {
 type TreeNode = ActionTreeItem | SectionTreeItem;
 
 class SectionTreeItem extends vscode.TreeItem {
-  constructor(label: string, public readonly items: ActionTreeItem[]) {
-    super(label, vscode.TreeItemCollapsibleState.Expanded);
-    this.iconPath = new vscode.ThemeIcon('folder');
+  constructor(
+    label: string,
+    public readonly items: TreeNode[],
+    iconId: string,
+    collapsibleState: vscode.TreeItemCollapsibleState = vscode.TreeItemCollapsibleState.Expanded
+  ) {
+    super(label, collapsibleState);
+    this.iconPath = new vscode.ThemeIcon(iconId);
+    this.contextValue = 'harbormasterSection';
   }
 }
 
