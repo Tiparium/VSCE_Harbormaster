@@ -80,6 +80,16 @@
         "command": "projectWindowTitle.removeProjectTag",
         "title": "Harbormaster: Remove tag from project",
         "category": "Harbormaster"
+      },
+      {
+        "command": "projectWindowTitle.addProjectToCatalog",
+        "title": "Harbormaster: Add current project to catalog",
+        "category": "Harbormaster"
+      },
+      {
+        "command": "projectWindowTitle.openProjectFromCatalog",
+        "title": "Harbormaster: Open project from catalog",
+        "category": "Harbormaster"
       }
     ],
     "configuration": {
@@ -94,6 +104,11 @@
           "type": "string",
           "default": ".harbormaster/tags.json",
           "description": "Relative path to the tag registry file."
+        },
+        "projectWindowTitle.projectsFile": {
+          "type": "string",
+          "default": ".harbormaster/projects.json",
+          "description": "Relative path to the Harbormaster project catalog file."
         },
         "projectWindowTitle.projectNameKey": {
           "type": "string",

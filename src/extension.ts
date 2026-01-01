@@ -7,6 +7,7 @@ const DEFAULT_VERSION_MAJOR_KEY = 'version_major';
 const DEFAULT_VERSION_MINOR_KEY = 'version_minor';
 const DEFAULT_VERSION_PRERELEASE_KEY = 'version_prerelease';
 const DEFAULT_TAGS_FILE = '.harbormaster/tags.json';
+const DEFAULT_PROJECTS_FILE = '.harbormaster/projects.json';
 const LEGACY_CONFIG_FILE = '.project.json';
 const DEFAULT_HEADLESS_PREFIX = '[Headless] ';
 const DEFAULT_NAMED_FORMAT = '${projectName}';
@@ -21,6 +22,7 @@ function isDevToolsEnabled(context: vscode.ExtensionContext): boolean {
 interface ExtensionSettings {
   configFile: string;
   tagsFile: string;
+  projectsFile: string;
   projectNameKey: string;
   projectVersionKey: string;
   projectVersionMajorKey: string;
@@ -40,6 +42,21 @@ interface ProjectInfo {
 
 interface TagConfig {
   tags: string[];
+}
+
+interface CatalogProject {
+  id: string;
+  name: string;
+  path: string;
+  tags?: string[];
+  createdAt: string;
+  lastOpenedAt?: string;
+  lastEditedAt?: string;
+}
+
+type Catalog = CatalogProject[];
+interface CatalogQuickPickItem extends vscode.QuickPickItem {
+  project: CatalogProject;
 }
 
 let trackerSingleton: ProjectTracker | undefined;
@@ -91,6 +108,8 @@ class ProjectTracker implements vscode.Disposable {
     await this.migrateLegacyConfig(folder, settings);
     await this.backupTagsFile(folder, settings);
     await this.ensureTagsFile(folder, settings);
+    await this.ensureProjectsFile(folder, settings);
+    await this.upsertCatalogEntry(folder, settings, { silent: true, requireExisting: true });
     this.registerWatchers(folder, settings);
     this.initialized = true;
   }
@@ -245,6 +264,135 @@ class ProjectTracker implements vscode.Disposable {
     void vscode.window.showInformationMessage(`Harbormaster: removed tag "${pick}" from project.`);
   }
 
+  async addProjectToCatalog(): Promise<void> {
+    const folder = getPrimaryWorkspaceFolder();
+    if (!folder) {
+      void vscode.window.showErrorMessage('Harbormaster: No workspace folder open.');
+      return;
+    }
+    await this.ensureInitialized();
+    const settings = getExtensionSettings();
+    await this.upsertCatalogEntry(folder, settings);
+  }
+
+  async openProjectFromCatalog(): Promise<void> {
+    const folder = getPrimaryWorkspaceFolder();
+    if (!folder) {
+      void vscode.window.showErrorMessage('Harbormaster: No workspace folder open.');
+      return;
+    }
+    await this.ensureInitialized();
+    const settings = getExtensionSettings();
+    const catalogUri = vscode.Uri.joinPath(folder.uri, settings.projectsFile);
+    let catalog = await this.readCatalog(catalogUri);
+    if (catalog.length === 0) {
+      void vscode.window.showInformationMessage('Harbormaster: No catalog entries. Add the current project first.');
+      return;
+    }
+
+    const sortOption = await vscode.window.showQuickPick(
+      [
+        { label: 'Last opened (desc)', sort: 'lastOpened' },
+        { label: 'Created (desc)', sort: 'created' },
+        { label: 'Name (A → Z)', sort: 'name' },
+        { label: 'Tags (A → Z)', sort: 'tags' },
+        { label: 'Last edited (desc)', sort: 'lastEdited' },
+      ],
+      { placeHolder: 'Sort projects by' }
+    );
+    if (!sortOption) {
+      return;
+    }
+
+    catalog = this.sortCatalog(catalog, sortOption.sort);
+
+    const quickPick = vscode.window.createQuickPick<CatalogQuickPickItem>();
+    quickPick.matchOnDescription = true;
+    quickPick.matchOnDetail = true;
+    quickPick.title = 'Open Harbormaster project';
+    quickPick.placeholder = 'Enter to open here. Click the window button for a new window.';
+
+    const openNewButton: vscode.QuickInputButton = {
+      iconPath: new vscode.ThemeIcon('window-new'),
+      tooltip: 'Open in new window (acts like Cmd/Ctrl/Shift-click)',
+    };
+
+    quickPick.buttons = [openNewButton];
+    quickPick.items = catalog.map((p) => ({
+      label: p.name,
+      description: p.tags && p.tags.length ? `Tags: ${p.tags.join(', ')}` : 'No tags',
+      detail: `Path: ${p.path} · Created: ${formatIsoDate(p.createdAt)}${
+        p.lastEditedAt ? ` · Edited: ${formatIsoDate(p.lastEditedAt)}` : ''
+      }${p.lastOpenedAt ? ` · Opened: ${formatIsoDate(p.lastOpenedAt)}` : ''}`,
+      project: p,
+      buttons: [openNewButton],
+    }));
+
+    let forceNewWindow = false;
+    quickPick.onDidTriggerButton((btn) => {
+      if (btn === openNewButton) {
+        forceNewWindow = true;
+        quickPick.buttons = [];
+      }
+    });
+
+    quickPick.onDidTriggerItemButton(async (event) => {
+      if (event.button === openNewButton) {
+        await this.openCatalogProject(event.item.project, catalogUri, catalog, true);
+        quickPick.hide();
+      }
+    });
+
+    quickPick.onDidAccept(async () => {
+      const selection = quickPick.selectedItems[0];
+      if (!selection) {
+        quickPick.hide();
+        return;
+      }
+      await this.openCatalogProject(selection.project, catalogUri, catalog, forceNewWindow);
+      quickPick.hide();
+    });
+
+    quickPick.show();
+  }
+
+  private sortCatalog(catalog: Catalog, sort: string): Catalog {
+    const clone = [...catalog];
+    switch (sort) {
+      case 'name':
+        clone.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+      case 'tags':
+        clone.sort((a, b) => (a.tags ?? []).join(',').localeCompare((b.tags ?? []).join(',')));
+        break;
+      case 'lastEdited':
+        clone.sort((a, b) => (b.lastEditedAt ?? '').localeCompare(a.lastEditedAt ?? ''));
+        break;
+      case 'created':
+        clone.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+        break;
+      case 'lastOpened':
+      default:
+        clone.sort((a, b) => (b.lastOpenedAt ?? b.createdAt ?? '').localeCompare(a.lastOpenedAt ?? a.createdAt ?? ''));
+        break;
+    }
+    return clone;
+  }
+
+  private async openCatalogProject(
+    project: CatalogProject,
+    catalogUri: vscode.Uri,
+    catalog: Catalog,
+    forceNewWindow: boolean
+  ): Promise<void> {
+    await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(project.path), {
+      forceNewWindow,
+    });
+    const now = new Date().toISOString();
+    const updated = catalog.map((p) => (p.id === project.id ? { ...p, lastOpenedAt: now } : p));
+    await this.writeCatalog(updated, catalogUri);
+  }
+
   private async migrateLegacyConfig(folder: vscode.WorkspaceFolder, settings: ExtensionSettings): Promise<void> {
     if (settings.configFile !== DEFAULT_CONFIG_FILE) {
       return;
@@ -345,6 +493,28 @@ class ProjectTracker implements vscode.Disposable {
     }
   }
 
+  private async readCatalog(uri: vscode.Uri): Promise<Catalog> {
+    try {
+      const content = await vscode.workspace.fs.readFile(uri);
+      const parsed = JSON.parse(Buffer.from(content).toString('utf8'));
+      if (Array.isArray(parsed)) {
+        return parsed as Catalog;
+      }
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code && code !== 'ENOENT') {
+        console.warn(`Harbormaster: unable to read catalog ${uri.fsPath}:`, error);
+      }
+    }
+    return [];
+  }
+
+  private async writeCatalog(catalog: Catalog, uri: vscode.Uri): Promise<void> {
+    await this.ensureDirectory(uri);
+    await vscode.workspace.fs.writeFile(uri, Buffer.from(JSON.stringify(catalog, null, 2) + '\n', 'utf8'));
+    this.onDidChangeEmitter.fire();
+  }
+
   private async ensureDirectory(targetUri: vscode.Uri): Promise<void> {
     await ensureDirectoryForFile(targetUri);
   }
@@ -353,16 +523,30 @@ class ProjectTracker implements vscode.Disposable {
     const patterns = [
       new vscode.RelativePattern(folder, settings.configFile),
       new vscode.RelativePattern(folder, settings.tagsFile),
+      new vscode.RelativePattern(folder, settings.projectsFile),
       new vscode.RelativePattern(folder, LEGACY_CONFIG_FILE),
     ];
 
     for (const pattern of patterns) {
       const watcher = vscode.workspace.createFileSystemWatcher(pattern);
+      const shouldAutoCatalog =
+        pattern.pattern === settings.configFile || pattern.pattern === settings.tagsFile || pattern.pattern === LEGACY_CONFIG_FILE;
+      const syncCatalog = () => {
+        if (shouldAutoCatalog) {
+          void this.upsertCatalogEntry(folder, settings, { silent: true, requireExisting: true });
+        }
+      };
       this.watchers.push(watcher);
       this.disposables.push(
         watcher,
-        watcher.onDidChange(() => this.onDidChangeEmitter.fire()),
-        watcher.onDidCreate(() => this.onDidChangeEmitter.fire()),
+        watcher.onDidChange(() => {
+          syncCatalog();
+          this.onDidChangeEmitter.fire();
+        }),
+        watcher.onDidCreate(() => {
+          syncCatalog();
+          this.onDidChangeEmitter.fire();
+        }),
         watcher.onDidDelete(() => this.onDidChangeEmitter.fire())
       );
     }
@@ -391,6 +575,65 @@ class ProjectTracker implements vscode.Disposable {
       await vscode.workspace.fs.writeFile(backupUri, content);
     } catch (error) {
       console.warn(`Harbormaster: unable to create tags backup ${backupName}:`, error);
+    }
+  }
+
+  private async ensureProjectsFile(folder: vscode.WorkspaceFolder, settings: ExtensionSettings): Promise<void> {
+    const projectsUri = vscode.Uri.joinPath(folder.uri, settings.projectsFile);
+    if (await fileExists(projectsUri)) {
+      return;
+    }
+    await this.ensureDirectory(projectsUri);
+    await this.writeCatalog([], projectsUri);
+  }
+
+  private async upsertCatalogEntry(
+    folder: vscode.WorkspaceFolder,
+    settings: ExtensionSettings,
+    options: { silent?: boolean; requireExisting?: boolean } = {}
+  ): Promise<void> {
+    const { silent = false, requireExisting = false } = options;
+    const catalogUri = vscode.Uri.joinPath(folder.uri, settings.projectsFile);
+    if (requireExisting && !(await fileExists(catalogUri))) {
+      return;
+    }
+    const configUri = vscode.Uri.joinPath(folder.uri, settings.configFile);
+    if (!(await fileExists(configUri))) {
+      if (!silent) {
+        void vscode.window.showWarningMessage(`Harbormaster: ${settings.configFile} not found; cannot add to catalog.`);
+      }
+      return;
+    }
+
+    const config = await this.readConfig(configUri);
+    const name = coerceString(config?.project_name) ?? folder.name;
+    const tags = dedupeTags(Array.isArray(config?.tags) ? config.tags : []);
+    const now = new Date().toISOString();
+
+    const catalog = await this.readCatalog(catalogUri);
+    const existingIndex = catalog.findIndex((p) => p.path === folder.uri.fsPath);
+    if (existingIndex >= 0) {
+      const existing = catalog[existingIndex];
+      catalog[existingIndex] = {
+        ...existing,
+        name,
+        tags,
+        lastEditedAt: now,
+      };
+    } else {
+      catalog.push({
+        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        name,
+        path: folder.uri.fsPath,
+        tags,
+        createdAt: now,
+      });
+    }
+
+    await this.ensureDirectory(catalogUri);
+    await this.writeCatalog(catalog, catalogUri);
+    if (!silent) {
+      void vscode.window.showInformationMessage(`Harbormaster: saved "${name}" to catalog.`);
     }
   }
 }
@@ -430,6 +673,7 @@ class ActionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
     const settings = getExtensionSettings();
     const configExists = folder ? await fileExists(vscode.Uri.joinPath(folder.uri, settings.configFile)) : false;
     const tagsExists = folder ? await fileExists(vscode.Uri.joinPath(folder.uri, settings.tagsFile)) : false;
+    const projectsExists = folder ? await fileExists(vscode.Uri.joinPath(folder.uri, settings.projectsFile)) : false;
 
     const info = await this.tracker.getCurrentProjectInfo(settings);
     const infoItems: ActionTreeItem[] = [
@@ -484,6 +728,17 @@ class ActionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
         'tag'
       )
     );
+    sections.push(
+      new SectionTreeItem(
+        'Projects',
+        [
+          new ActionTreeItem('Open project from catalog', 'projectWindowTitle.openProjectFromCatalog', 'folder-opened'),
+          new ActionTreeItem('Add current project to catalog', 'projectWindowTitle.addProjectToCatalog', 'add'),
+        ],
+        'repo',
+        projectsExists ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed
+      )
+    );
     sections.push(new SectionTreeItem('Utility', utilityItems, 'settings-gear', vscode.TreeItemCollapsibleState.Collapsed));
 
     return sections;
@@ -532,6 +787,8 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('projectWindowTitle.removeGlobalTag', () => tracker.removeGlobalTag()),
     vscode.commands.registerCommand('projectWindowTitle.assignTag', () => tracker.assignTagToProject()),
     vscode.commands.registerCommand('projectWindowTitle.removeProjectTag', () => tracker.removeProjectTag()),
+    vscode.commands.registerCommand('projectWindowTitle.addProjectToCatalog', () => tracker.addProjectToCatalog()),
+    vscode.commands.registerCommand('projectWindowTitle.openProjectFromCatalog', () => tracker.openProjectFromCatalog()),
     new StatusBarController(),
     treeView
   );
@@ -622,6 +879,7 @@ function getExtensionSettings(): ExtensionSettings {
   return {
     configFile: config.get<string>('configFile', DEFAULT_CONFIG_FILE),
     tagsFile: config.get<string>('tagsFile', DEFAULT_TAGS_FILE),
+    projectsFile: config.get<string>('projectsFile', DEFAULT_PROJECTS_FILE),
     projectNameKey: config.get<string>('projectNameKey', DEFAULT_PROJECT_KEY),
     projectVersionKey: config.get<string>('projectVersionKey', DEFAULT_VERSION_KEY),
     projectVersionMajorKey: config.get<string>('projectVersionMajorKey', DEFAULT_VERSION_MAJOR_KEY),
@@ -811,8 +1069,10 @@ async function showMenu(): Promise<void> {
   }
 
   const items: vscode.QuickPickItem[] = [
-    { label: 'Create project config', description: 'Prompt for name/version and write .project.json' },
-    { label: 'Open project config', description: 'Open or create the configured .project.json' },
+    { label: 'Create project config', description: 'Prompt for name/version and write .harbormaster/project.json' },
+    { label: 'Open project config', description: 'Open or create the configured .harbormaster/project.json' },
+    { label: 'Add project to catalog', description: 'Save current project entry to the catalog' },
+    { label: 'Open project from catalog', description: 'Pick and open a saved Harbormaster project' },
     { label: 'Add global tag', description: 'Create a tag available to all projects' },
     { label: 'Assign tag to project', description: 'Attach an existing tag to this project' },
     { label: 'Remove tag from project', description: 'Detach an assigned tag' },
@@ -835,6 +1095,16 @@ async function showMenu(): Promise<void> {
 
   if (selection.label === 'Open project config') {
     await openProjectConfig();
+    return;
+  }
+
+  if (selection.label === 'Add project to catalog') {
+    await trackerSingleton.addProjectToCatalog();
+    return;
+  }
+
+  if (selection.label === 'Open project from catalog') {
+    await trackerSingleton.openProjectFromCatalog();
     return;
   }
 
@@ -935,4 +1205,15 @@ function dedupeTags(tags: unknown[]): string[] {
     }
   }
   return result;
+}
+
+function formatIsoDate(value: string | undefined): string {
+  if (!value) {
+    return 'N/A';
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return date.toLocaleString();
 }

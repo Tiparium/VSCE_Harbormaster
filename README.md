@@ -3,18 +3,19 @@
 Project-aware window titles plus a lightweight project tracker for VS Code. Keep your workspace title in sync with your project config, and jump between projects from a single in-editor hub.
 
 ## What it does
-- Reads a repo-local config (`.project.json` by default) and updates the workspace `window.title` to the project name; optional version display uses a derived SemVer `major.minor.<YY>[-prerelease]`.
+- Reads a repo-local config (`.harbormaster/project.json` by default; migrates from legacy `.project.json`) and updates the workspace `window.title` to the project name; optional version display uses a derived SemVer `major.minor.<YY>[-prerelease]`.
 - Status bar entry opens a quick menu for creating or opening the project config.
-- Activity Bar view lists quick actions (create/open config, refresh title, menu).
-- Project database: create a shared catalog (stored in extension global storage), add/reconnect the current workspace, and open projects directly from the list. Orphaned entries (moved/deleted folders) are detected and can be reconnected.
-- Dev mode flag (`HARBORMASTER_DEV_TOOLS=1`) enables internal tools (e.g., path scramble) without shipping them to prod users.
+- Activity Bar view lists quick actions grouped by section (Info, Project, Tags, Projects, Utility). The view shows the current project name/version/tags at a glance.
+- Tag registry: manage global tags (`.harbormaster/tags.json`) and assign/unassign them to the current project.
+- Project catalog: save the current project and open other Harbormaster projects from `.harbormaster/projects.json`, sortable by name, tags, created, last opened, and last edited. Open in the current window or a new one via the window button.
+- Dev mode flag (`HARBORMASTER_DEV_TOOLS=1`) exposes internal tooling without shipping it to prod users.
 
 ## Quick start
 1. Install or run the extension (Run Extension in VS Code or install the VSIX).
 2. Command Palette → **Create project config** (search “Harbormaster” to find it). Enter a project name (required) and an optional version. This writes `.harbormaster/project.json` to the first workspace folder (you can keep the folder ignored in your repo).
-3. (Optional) Command Palette → **Create projects database** to initialize the shared catalog.
-4. (Optional) Add tags: **Harbormaster: Add global tag** then **Assign tag to project**. Tags are stored in `.harbormaster/tags.json`.
-5. Use the status bar item or Harbormaster Activity Bar view to open the menu, refresh the title, or open a project from the database.
+3. (Optional) Add tags: **Harbormaster: Add global tag** then **Assign tag to project**. Tags are stored in `.harbormaster/tags.json`.
+4. (Optional) Save the project to the catalog and open others via **Harbormaster: Add current project to catalog** and **Harbormaster: Open project from catalog** (`.harbormaster/projects.json`).
+5. Use the status bar item or Harbormaster Activity Bar view to open the menu, refresh the title, manage tags, and jump between projects.
 
 ## Project config (`.harbormaster/project.json`)
 Config containing the project identity, version metadata, and project tags (safe to ignore in git if you prefer):
@@ -45,14 +46,14 @@ Global tag list available to all projects in the workspace:
 ```
 - Use commands to add/remove tags and assign/unassign them to the project. Removing a global tag also removes it from any project that used it.
 
-## Project database
-- Stored under the extension’s global storage (per-machine).
-- Commands: create database, open project from database, reconnect current workspace, refresh window title, and dev-only path scramble.
-- Orphan detection: entries whose paths no longer exist are marked and can be reconnected to the current workspace.
+## Project catalog (`.harbormaster/projects.json`)
+- Stores saved Harbormaster projects with name, path, tags, created date, last edited, and last opened timestamps.
+- Open dialog lets you sort by name, tags, created, last opened, or last edited. Use the window button to open in a new VS Code window.
+- Adding a project refreshes name/tags if it already exists, or creates a new entry otherwise.
 
 ## UI surfaces
 - **Status bar** (bottom left): Harbormaster item opens the quick menu.
-- **Activity Bar**: Harbormaster view lists quick actions (create/open config, refresh title, database actions, menu). The view description shows the extension version and dev flag when enabled.
+- **Activity Bar**: Harbormaster view lists quick actions grouped by section (Info, Project, Tags, Projects, Utility). The view description shows the extension version and dev flag when enabled.
 
 ## Commands (Command Palette prefix: “Harbormaster”)
 - Create project config (`projectWindowTitle.createConfig`)
@@ -63,14 +64,13 @@ Global tag list available to all projects in the workspace:
 - Remove global tag (`projectWindowTitle.removeGlobalTag`)
 - Assign tag to project (`projectWindowTitle.assignTag`)
 - Remove tag from project (`projectWindowTitle.removeProjectTag`)
-- Create projects database (`projectWindowTitle.createDatabase`)
-- Open project from database (`projectWindowTitle.openProjectFromDatabase`)
-- Reconnect current project to database (`projectWindowTitle.reconnectProject`)
-- (Dev) Scramble project path (`projectWindowTitle.devBatman`)
+- Add current project to catalog (`projectWindowTitle.addProjectToCatalog`)
+- Open project from catalog (`projectWindowTitle.openProjectFromCatalog`)
 
 ## Settings
 - `projectWindowTitle.configFile` (default `.harbormaster/project.json`): Relative path to the config file.
 - `projectWindowTitle.tagsFile` (default `.harbormaster/tags.json`): Relative path to the tags registry.
+- `projectWindowTitle.projectsFile` (default `.harbormaster/projects.json`): Relative path to the project catalog.
 - `projectWindowTitle.projectNameKey` (default `project_name`)
 - `projectWindowTitle.projectVersionKey` (default `project_version`)
 - `projectWindowTitle.projectVersionMajorKey` (default `version_major`)
