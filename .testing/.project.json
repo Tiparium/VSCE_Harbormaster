@@ -1,8 +1,0 @@
-{
-  "project_name": "Harbormaster Overwrite Test",
-  "project_version": "",
-  "version_major": 0,
-  "version_minor": 0,
-  "version_prerelease": "",
-  "version_scheme_note": "version = <major>.<minor>.<YY>-<prerelease>; YY is last two digits of build year (computed automatically); prerelease is optional."
-}

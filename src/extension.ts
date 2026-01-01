@@ -89,6 +89,7 @@ class ProjectTracker implements vscode.Disposable {
 
     const settings = getExtensionSettings();
     await this.migrateLegacyConfig(folder, settings);
+    await this.backupTagsFile(folder, settings);
     await this.ensureTagsFile(folder, settings);
     this.registerWatchers(folder, settings);
     this.initialized = true;
@@ -250,11 +251,16 @@ class ProjectTracker implements vscode.Disposable {
     }
 
     const newUri = vscode.Uri.joinPath(folder.uri, settings.configFile);
+    const legacyUri = vscode.Uri.joinPath(folder.uri, LEGACY_CONFIG_FILE);
+
+    // If the new file exists and the legacy file still lingers, remove the legacy copy.
     if (await fileExists(newUri)) {
+      if (await fileExists(legacyUri)) {
+        await vscode.workspace.fs.delete(legacyUri);
+      }
       return;
     }
 
-    const legacyUri = vscode.Uri.joinPath(folder.uri, LEGACY_CONFIG_FILE);
     if (!(await fileExists(legacyUri))) {
       return;
     }
@@ -263,6 +269,7 @@ class ProjectTracker implements vscode.Disposable {
     legacy.tags = dedupeTags(Array.isArray(legacy.tags) ? legacy.tags : []);
     await this.ensureDirectory(newUri);
     await this.writeConfig(newUri, legacy, settings.configFile);
+    await vscode.workspace.fs.delete(legacyUri);
   }
 
   private async ensureTagsFile(folder: vscode.WorkspaceFolder, settings: ExtensionSettings): Promise<void> {
@@ -358,6 +365,32 @@ class ProjectTracker implements vscode.Disposable {
         watcher.onDidCreate(() => this.onDidChangeEmitter.fire()),
         watcher.onDidDelete(() => this.onDidChangeEmitter.fire())
       );
+    }
+  }
+
+  private async backupTagsFile(folder: vscode.WorkspaceFolder, settings: ExtensionSettings): Promise<void> {
+    const tagsUri = vscode.Uri.joinPath(folder.uri, settings.tagsFile);
+    if (!(await fileExists(tagsUri))) {
+      return;
+    }
+
+    const today = new Date();
+    const stamp = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(
+      today.getDate()
+    ).padStart(2, '0')}`;
+    const backupName = `${settings.tagsFile.replace(/\/?$/, '')}.bak-${stamp}`;
+    const backupUri = vscode.Uri.joinPath(folder.uri, backupName);
+
+    if (await fileExists(backupUri)) {
+      return;
+    }
+
+    try {
+      const content = await vscode.workspace.fs.readFile(tagsUri);
+      await this.ensureDirectory(backupUri);
+      await vscode.workspace.fs.writeFile(backupUri, content);
+    } catch (error) {
+      console.warn(`Harbormaster: unable to create tags backup ${backupName}:`, error);
     }
   }
 }
