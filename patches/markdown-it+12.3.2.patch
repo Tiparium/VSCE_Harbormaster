@@ -1,0 +1,14 @@
+diff --git a/node_modules/markdown-it/lib/index.js b/node_modules/markdown-it/lib/index.js
+index b8b5c2f..2e2cf1b 100644
+--- a/node_modules/markdown-it/lib/index.js
++++ b/node_modules/markdown-it/lib/index.js
+@@ -10,7 +10,8 @@ var helpers      = require('./helpers');
+ var Renderer     = require('./renderer');
+ var ParserCore   = require('./parser_core');
+ var ParserBlock  = require('./parser_block');
+ var ParserInline = require('./parser_inline');
+ var LinkifyIt    = require('linkify-it');
+ var mdurl        = require('mdurl');
+-var punycode     = require('punycode');
++// Use userland punycode to avoid deprecated core module warning in Node 18+
++var punycode     = require('punycode/');

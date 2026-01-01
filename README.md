@@ -11,12 +11,13 @@ Project-aware window titles plus a lightweight project tracker for VS Code. Keep
 
 ## Quick start
 1. Install or run the extension (Run Extension in VS Code or install the VSIX).
-2. Command Palette → **Create project config** (search “Harbormaster” to find it). Enter a project name (required) and an optional version. This writes `.project.json` to the first workspace folder (you can keep it ignored in your repo).
+2. Command Palette → **Create project config** (search “Harbormaster” to find it). Enter a project name (required) and an optional version. This writes `.harbormaster/project.json` to the first workspace folder (you can keep the folder ignored in your repo).
 3. (Optional) Command Palette → **Create projects database** to initialize the shared catalog.
-4. Use the status bar item or Harbormaster Activity Bar view to open the menu, refresh the title, or open a project from the database.
+4. (Optional) Add tags: **Harbormaster: Add global tag** then **Assign tag to project**. Tags are stored in `.harbormaster/tags.json`.
+5. Use the status bar item or Harbormaster Activity Bar view to open the menu, refresh the title, or open a project from the database.
 
-## Project config (`.project.json`)
-Config containing the project identity and version metadata (safe to ignore in git if you prefer):
+## Project config (`.harbormaster/project.json`)
+Config containing the project identity, version metadata, and project tags (safe to ignore in git if you prefer):
 ```json
 {
   "project_name": "Harbormaster",
@@ -24,11 +25,25 @@ Config containing the project identity and version metadata (safe to ignore in g
   "version_major": 1,
   "version_minor": 2,
   "version_prerelease": "alpha",
-  "version_scheme_note": "version = <major>.<minor>.<YY>-<prerelease>; YY is last two digits of build year (computed automatically); prerelease is optional."
+  "version_scheme_note": "version = <major>.<minor>.<YY>-<prerelease>; YY is last two digits of build year (computed automatically); prerelease is optional.",
+  "tags": [
+    "backend",
+    "prod"
+  ]
 }
 ```
 - `project_name` drives the workspace title. If missing, the title is prefixed with `[Headless] ` plus your normal template.
 - If `project_version` is a valid SemVer, it is used. Otherwise Harbormaster derives `major.minor.<YY>[-prerelease]` from the numeric fields. Set `projectWindowTitle.showVersion` to true to display it.
+- `tags` is an array of tag IDs assigned to this project.
+
+## Tags registry (`.harbormaster/tags.json`)
+Global tag list available to all projects in the workspace:
+```json
+{
+  "tags": ["backend", "prod", "ui"]
+}
+```
+- Use commands to add/remove tags and assign/unassign them to the project. Removing a global tag also removes it from any project that used it.
 
 ## Project database
 - Stored under the extension’s global storage (per-machine).
@@ -44,13 +59,18 @@ Config containing the project identity and version metadata (safe to ignore in g
 - Open project config (`projectWindowTitle.openConfig`)
 - Menu (`projectWindowTitle.showMenu`)
 - Refresh window title (`projectWindowTitle.refresh`)
+- Add global tag (`projectWindowTitle.addGlobalTag`)
+- Remove global tag (`projectWindowTitle.removeGlobalTag`)
+- Assign tag to project (`projectWindowTitle.assignTag`)
+- Remove tag from project (`projectWindowTitle.removeProjectTag`)
 - Create projects database (`projectWindowTitle.createDatabase`)
 - Open project from database (`projectWindowTitle.openProjectFromDatabase`)
 - Reconnect current project to database (`projectWindowTitle.reconnectProject`)
 - (Dev) Scramble project path (`projectWindowTitle.devBatman`)
 
 ## Settings
-- `projectWindowTitle.configFile` (default `.project.json`): Relative path to the config file.
+- `projectWindowTitle.configFile` (default `.harbormaster/project.json`): Relative path to the config file.
+- `projectWindowTitle.tagsFile` (default `.harbormaster/tags.json`): Relative path to the tags registry.
 - `projectWindowTitle.projectNameKey` (default `project_name`)
 - `projectWindowTitle.projectVersionKey` (default `project_version`)
 - `projectWindowTitle.projectVersionMajorKey` (default `version_major`)
@@ -64,7 +84,7 @@ Config containing the project identity and version metadata (safe to ignore in g
 All settings are workspace-scoped; global/user settings are never modified.
 
 ## Versioning and builds
-- Extension version derives from `.project.json` as `major.minor.<YY>[-prerelease]` (YY = last two digits of the build year).
+- Extension version derives from `.harbormaster/project.json` (falls back to `.project.json` for legacy) as `major.minor.<YY>[-prerelease]` (YY = last two digits of the build year).
 - Scripts (`./run`):
   - `./run compile [dev|prod]` — derive version, single TypeScript build (no VSIX). Default dev.
   - `./run watch [dev|prod]` — derive version, watch mode. Default dev.

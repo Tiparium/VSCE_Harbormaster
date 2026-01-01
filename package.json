@@ -60,6 +60,26 @@
         "command": "projectWindowTitle.refresh",
         "title": "Harbormaster: Refresh window title",
         "category": "Harbormaster"
+      },
+      {
+        "command": "projectWindowTitle.addGlobalTag",
+        "title": "Harbormaster: Add global tag",
+        "category": "Harbormaster"
+      },
+      {
+        "command": "projectWindowTitle.removeGlobalTag",
+        "title": "Harbormaster: Remove global tag",
+        "category": "Harbormaster"
+      },
+      {
+        "command": "projectWindowTitle.assignTag",
+        "title": "Harbormaster: Assign tag to project",
+        "category": "Harbormaster"
+      },
+      {
+        "command": "projectWindowTitle.removeProjectTag",
+        "title": "Harbormaster: Remove tag from project",
+        "category": "Harbormaster"
       }
     ],
     "configuration": {
@@ -67,8 +87,13 @@
       "properties": {
         "projectWindowTitle.configFile": {
           "type": "string",
-          "default": ".project.json",
-          "description": "Relative path to the config file containing the project name."
+          "default": ".harbormaster/project.json",
+          "description": "Relative path to the project config file containing project metadata."
+        },
+        "projectWindowTitle.tagsFile": {
+          "type": "string",
+          "default": ".harbormaster/tags.json",
+          "description": "Relative path to the tag registry file."
         },
         "projectWindowTitle.projectNameKey": {
           "type": "string",
@@ -119,6 +144,7 @@
     }
   },
   "scripts": {
+    "postinstall": "patch-package",
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p .",
     "watch": "tsc -w -p .",
@@ -128,6 +154,11 @@
   "devDependencies": {
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.85.0",
+    "patch-package": "^6.5.1",
     "typescript": "^5.4.0"
+  },
+  "dependencies": {
+    "punycode": "^2.3.1",
+    "vsce": "^2.15.0"
   }
 }

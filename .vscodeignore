@@ -6,3 +6,4 @@ src/**
 .context/**
 builds/**
 .project.json
+.harbormaster/

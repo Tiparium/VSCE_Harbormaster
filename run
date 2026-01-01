@@ -3,9 +3,23 @@ set -euo pipefail
 
 COMMAND="${1:-help}"
 MODE="${2:-}"
-CONFIG_FILE=".project.json"
+CONFIG_FILE=".harbormaster/project.json"
 
 err() { echo "Error: $*" >&2; exit 1; }
+
+resolve_config_path() {
+  local primary="$CONFIG_FILE"
+  local legacy=".project.json"
+  if [[ -f "$primary" ]]; then
+    echo "$primary"
+    return
+  fi
+  if [[ "$primary" == ".harbormaster/project.json" && -f "$legacy" ]]; then
+    echo "$legacy"
+    return
+  fi
+  err "Could not find project config at $primary (or $legacy)."
+}
 
 resolve_mode() {
   local default_mode="$1"
@@ -26,7 +40,9 @@ resolve_mode() {
 }
 
 get_project_version() {
-  CONFIG_FILE="$CONFIG_FILE" node <<'NODE'
+  local config_path
+  config_path="$(resolve_config_path)"
+  CONFIG_FILE="$config_path" node <<'NODE'
 const fs = require('fs');
 const path = process.env.CONFIG_FILE;
 
@@ -69,7 +85,9 @@ NODE
 }
 
 bump_project_minor() {
-  CONFIG_FILE="$CONFIG_FILE" node <<'NODE'
+  local config_path
+  config_path="$(resolve_config_path)"
+  CONFIG_FILE="$config_path" node <<'NODE'
 const fs = require('fs');
 const path = process.env.CONFIG_FILE;
 
@@ -112,7 +130,9 @@ NODE
 }
 
 bump_project_major() {
-  CONFIG_FILE="$CONFIG_FILE" node <<'NODE'
+  local config_path
+  config_path="$(resolve_config_path)"
+  CONFIG_FILE="$config_path" node <<'NODE'
 const fs = require('fs');
 const path = process.env.CONFIG_FILE;
 

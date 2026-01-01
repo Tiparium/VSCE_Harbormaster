@@ -7,3 +7,4 @@ builds
 .context/
 agents.md
 .project.json
+.harbormaster/
