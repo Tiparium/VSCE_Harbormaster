@@ -5,3 +5,4 @@ src/**
 **/*.map
 .context/**
 builds/**
+.project.json

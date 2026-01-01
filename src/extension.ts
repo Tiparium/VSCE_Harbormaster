@@ -209,6 +209,7 @@ async function createProjectConfig(): Promise<void> {
     return;
   }
 
+
   let exists = false;
   try {
     await vscode.workspace.fs.stat(targetUri);

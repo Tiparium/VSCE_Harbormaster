@@ -6,3 +6,4 @@ out
 builds
 .context/
 agents.md
+.project.json

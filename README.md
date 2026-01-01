@@ -11,23 +11,24 @@ Project-aware window titles plus a lightweight project tracker for VS Code. Keep
 
 ## Quick start
 1. Install or run the extension (Run Extension in VS Code or install the VSIX).
-2. Command Palette → **Harbormaster: Create project config**. Enter a project name (required) and an optional version. This writes `.project.json` to the first workspace folder.
-3. (Optional) Command Palette → **Harbormaster: Create projects database** to initialize the shared catalog.
+2. Command Palette → **Create project config** (search “Harbormaster” to find it). Enter a project name (required) and an optional version. This writes `.project.json` to the first workspace folder (you can keep it ignored in your repo).
+3. (Optional) Command Palette → **Create projects database** to initialize the shared catalog.
 4. Use the status bar item or Harbormaster Activity Bar view to open the menu, refresh the title, or open a project from the database.
 
 ## Project config (`.project.json`)
-Example:
+Config containing the project identity and version metadata (safe to ignore in git if you prefer):
 ```json
 {
   "project_name": "Harbormaster",
+  "project_version": "",
   "version_major": 1,
-  "version_minor": 1,
+  "version_minor": 2,
   "version_prerelease": "alpha",
   "version_scheme_note": "version = <major>.<minor>.<YY>-<prerelease>; YY is last two digits of build year (computed automatically); prerelease is optional."
 }
 ```
 - `project_name` drives the workspace title. If missing, the title is prefixed with `[Headless] ` plus your normal template.
-- Versions: if `project_version` exists and is SemVer, it is used. Otherwise Harbormaster derives `major.minor.<YY>[-prerelease]` from the numeric fields. Set `projectWindowTitle.showVersion` to true to display it.
+- If `project_version` is a valid SemVer, it is used. Otherwise Harbormaster derives `major.minor.<YY>[-prerelease]` from the numeric fields. Set `projectWindowTitle.showVersion` to true to display it.
 
 ## Project database
 - Stored under the extension’s global storage (per-machine).
@@ -38,15 +39,15 @@ Example:
 - **Status bar** (bottom left): Harbormaster item opens the quick menu.
 - **Activity Bar**: Harbormaster view lists quick actions (create/open config, refresh title, database actions, menu). The view description shows the extension version and dev flag when enabled.
 
-## Commands
-- Harbormaster: Create project config (`projectWindowTitle.createConfig`)
-- Harbormaster: Open project config (`projectWindowTitle.openConfig`)
-- Harbormaster: Menu (`projectWindowTitle.showMenu`)
-- Harbormaster: Refresh window title (`projectWindowTitle.refresh`)
-- Harbormaster: Create projects database (`projectWindowTitle.createDatabase`)
-- Harbormaster: Open project from database (`projectWindowTitle.openProjectFromDatabase`)
-- Harbormaster: Reconnect current project to database (`projectWindowTitle.reconnectProject`)
-- Harbormaster (Dev): Scramble project path (`projectWindowTitle.devBatman`, dev mode only)
+## Commands (Command Palette prefix: “Harbormaster”)
+- Create project config (`projectWindowTitle.createConfig`)
+- Open project config (`projectWindowTitle.openConfig`)
+- Menu (`projectWindowTitle.showMenu`)
+- Refresh window title (`projectWindowTitle.refresh`)
+- Create projects database (`projectWindowTitle.createDatabase`)
+- Open project from database (`projectWindowTitle.openProjectFromDatabase`)
+- Reconnect current project to database (`projectWindowTitle.reconnectProject`)
+- (Dev) Scramble project path (`projectWindowTitle.devBatman`)
 
 ## Settings
 - `projectWindowTitle.configFile` (default `.project.json`): Relative path to the config file.

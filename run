@@ -2,13 +2,33 @@
 set -euo pipefail
 
 COMMAND="${1:-help}"
+MODE="${2:-}"
+CONFIG_FILE=".project.json"
 
 err() { echo "Error: $*" >&2; exit 1; }
 
+resolve_mode() {
+  local default_mode="$1"
+  local mode
+  if [[ -n "${MODE:-}" ]]; then
+    mode="$MODE"
+  elif [[ -n "$default_mode" ]]; then
+    mode="$default_mode"
+  else
+    err "Mode required. Use dev or prod."
+  fi
+
+  if [[ "$mode" != "dev" && "$mode" != "prod" ]]; then
+    err "Unknown mode '$mode'. Use dev or prod."
+  fi
+
+  echo "$mode"
+}
+
 get_project_version() {
-  node <<'NODE'
+  CONFIG_FILE="$CONFIG_FILE" node <<'NODE'
 const fs = require('fs');
-const path = '.project.json';
+const path = process.env.CONFIG_FILE;
 
 function coerceInt(value, fallback) {
   if (Number.isInteger(value) && value >= 0) return value;
@@ -16,11 +36,20 @@ function coerceInt(value, fallback) {
   return fallback;
 }
 
+function coerceString(value) {
+  if (typeof value !== 'string') return '';
+  return value.trim();
+}
+
 function deriveVersion(cfg) {
   const major = coerceInt(cfg.version_major, 0);
   const minor = coerceInt(cfg.version_minor, 0);
-  const prerelease = typeof cfg.version_prerelease === 'string' ? cfg.version_prerelease.trim() : '';
+  const prerelease = coerceString(cfg.version_prerelease);
+  const explicit = coerceString(cfg.project_version);
   const patch = new Date().getFullYear() % 100;
+  if (/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-.]+)?(?:\+[0-9A-Za-z-.]+)?$/.test(explicit)) {
+    return explicit;
+  }
   const base = `${major}.${minor}.${patch}`;
   return prerelease ? `${base}-${prerelease}` : base;
 }
@@ -39,9 +68,96 @@ try {
 NODE
 }
 
+bump_project_minor() {
+  CONFIG_FILE="$CONFIG_FILE" node <<'NODE'
+const fs = require('fs');
+const path = process.env.CONFIG_FILE;
+
+function coerceInt(value, fallback) {
+  if (Number.isInteger(value) && value >= 0) return value;
+  if (typeof value === 'string' && /^[0-9]+$/.test(value)) return Number.parseInt(value, 10);
+  return fallback;
+}
+
+function coerceString(value) {
+  if (typeof value !== 'string') return '';
+  return value.trim();
+}
+
+function deriveVersion(cfg) {
+  const major = coerceInt(cfg.version_major, 0);
+  const minor = coerceInt(cfg.version_minor, 0);
+  const prerelease = coerceString(cfg.version_prerelease);
+  const explicit = coerceString(cfg.project_version);
+  const patch = new Date().getFullYear() % 100;
+  if (/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-.]+)?(?:\+[0-9A-Za-z-.]+)?$/.test(explicit)) {
+    return explicit;
+  }
+  const base = `${major}.${minor}.${patch}`;
+  return prerelease ? `${base}-${prerelease}` : base;
+}
+
+try {
+  const raw = fs.readFileSync(path, 'utf8');
+  const cfg = JSON.parse(raw);
+  cfg.version_minor = coerceInt(cfg.version_minor, 0) + 1;
+  const nextVersion = deriveVersion(cfg);
+  fs.writeFileSync(path, JSON.stringify(cfg, null, 2) + '\n');
+  console.log(`Bumped version_minor to ${cfg.version_minor} (next version ${nextVersion})`);
+} catch (error) {
+  console.error('Failed to bump version_minor:', error.message || error);
+  process.exit(1);
+}
+NODE
+}
+
+bump_project_major() {
+  CONFIG_FILE="$CONFIG_FILE" node <<'NODE'
+const fs = require('fs');
+const path = process.env.CONFIG_FILE;
+
+function coerceInt(value, fallback) {
+  if (Number.isInteger(value) && value >= 0) return value;
+  if (typeof value === 'string' && /^[0-9]+$/.test(value)) return Number.parseInt(value, 10);
+  return fallback;
+}
+
+function coerceString(value) {
+  if (typeof value !== 'string') return '';
+  return value.trim();
+}
+
+function deriveVersion(cfg) {
+  const major = coerceInt(cfg.version_major, 0);
+  const minor = coerceInt(cfg.version_minor, 0);
+  const prerelease = coerceString(cfg.version_prerelease);
+  const explicit = coerceString(cfg.project_version);
+  const patch = new Date().getFullYear() % 100;
+  if (/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-.]+)?(?:\+[0-9A-Za-z-.]+)?$/.test(explicit)) {
+    return explicit;
+  }
+  const base = `${major}.${minor}.${patch}`;
+  return prerelease ? `${base}-${prerelease}` : base;
+}
+
+try {
+  const raw = fs.readFileSync(path, 'utf8');
+  const cfg = JSON.parse(raw);
+  cfg.version_major = coerceInt(cfg.version_major, 0) + 1;
+  cfg.version_minor = 0;
+  const nextVersion = deriveVersion(cfg);
+  fs.writeFileSync(path, JSON.stringify(cfg, null, 2) + '\n');
+  console.log(`Bumped version_major to ${cfg.version_major}, reset version_minor to 0 (next version ${nextVersion})`);
+} catch (error) {
+  console.error('Failed to bump version_major:', error.message || error);
+  process.exit(1);
+}
+NODE
+}
+
 sync_package_version() {
   local version
-  version="$(get_project_version)" || err "Could not derive project version from .project.json"
+  version="$(get_project_version)" || err "Could not derive project version"
   VERSION="$version" node <<'NODE'
 const fs = require('fs');
 const pkgPath = 'package.json';
@@ -59,45 +175,84 @@ NODE
 }
 
 cmd_compile() {
+  local mode
+  mode="$(resolve_mode "dev")"
   sync_package_version
-  npm run compile
+  local version
+  version="$(get_project_version)" || err "Could not derive project version"
+  echo "Compiling Harbormaster ${version} (mode: ${mode})"
+  HARBORMASTER_DEV_TOOLS=$([[ "$mode" == "dev" ]] && echo "1" || echo "0") npm run compile
 }
 
 cmd_watch() {
+  local mode
+  mode="$(resolve_mode "dev")"
   sync_package_version
-  npm run watch
+  local version
+  version="$(get_project_version)" || err "Could not derive project version"
+  echo "Starting watch for Harbormaster ${version} (mode: ${mode})"
+  HARBORMASTER_DEV_TOOLS=$([[ "$mode" == "dev" ]] && echo "1" || echo "0") npm run watch
 }
 
 cmd_build() {
+  local mode
+  mode="$(resolve_mode "")"
+  if [[ "$mode" == "prod" ]]; then
+    bump_project_minor
+  else
+    echo "Skipping version bump in dev mode."
+  fi
   sync_package_version
-  npm run compile
+  local version pkgName target choice
+  version="$(get_project_version)" || err "project_version not found"
+  echo "Building Harbormaster ${version} (mode: ${mode})"
+  HARBORMASTER_DEV_TOOLS=$([[ "$mode" == "dev" ]] && echo "1" || echo "0") npm run compile
 
   mkdir -p builds
-  local version pkgName target choice
-  version="$(get_project_version)" || err "project_version not found in .project.json"
   pkgName="$(node -p "require('./package.json').name")"
-  target="builds/${pkgName}-${version}.vsix"
+  target="builds/${pkgName}-${version}-${mode}.vsix"
 
   if [[ -f "$target" ]]; then
     echo "VSIX already exists: $target"
-    read -r -p "Overwrite (o/O), Keep both (k/K), or cancel (other)? " choice
-    case "$choice" in
-      o|O)
-        rm -f "$target"
-        ;;
-      k|K)
-        local idx=1 alt
-        while :; do
-          alt="builds/${pkgName}-${version}-${idx}.vsix"
-          [[ -f "$alt" ]] || { target="$alt"; break; }
-          idx=$((idx+1))
-        done
-        ;;
-      *)
-        echo "Canceled."
-        exit 1
-        ;;
-    esac
+    if [[ "$mode" == "dev" ]]; then
+      read -r -p "Overwrite (default), Keep both (k/K), or cancel (c/C/other)? " choice
+      case "$choice" in
+        ""|o|O)
+          rm -f "$target"
+          ;;
+        k|K)
+          local idx=1 alt
+          while :; do
+            alt="builds/${pkgName}-${version}-${mode}-${idx}.vsix"
+            [[ -f "$alt" ]] || { target="$alt"; break; }
+            idx=$((idx+1))
+          done
+          ;;
+        *)
+          echo "Canceled."
+          exit 1
+          ;;
+      esac
+    else
+      read -r -p "Cancel (default), overwrite (o/O), or keep both (k/K)? " choice
+      case "$choice" in
+        o|O)
+          rm -f "$target"
+          ;;
+        k|K)
+          local idx=1 alt
+          while :; do
+            alt="builds/${pkgName}-${version}-${mode}-${idx}.vsix"
+            [[ -f "$alt" ]] || { target="$alt"; break; }
+            idx=$((idx+1))
+          done
+          ;;
+        *)
+          echo "Canceled."
+          exit 1
+          ;;
+      esac
+    fi
   fi
 
   npx vsce package -o "$target"
@@ -113,18 +268,22 @@ case "$COMMAND" in
   build)
     cmd_build
     ;;
+  major_update)
+    bump_project_major
+    ;;
   -h|--help|help)
     cat <<'EOF'
 Usage: ./run <command>
 
 Commands:
-  compile   Derive version from .project.json and run a single TypeScript build (no VSIX)
-  watch     Derive version and run tsc in watch mode
-  build     Derive version, run build, and package into ./builds/*.vsix (prompts on conflicts)
+  compile [dev|prod]   Derive version from .project.json and run a single TypeScript build (no VSIX). Defaults to dev mode.
+  watch [dev|prod]     Derive version and run tsc in watch mode. Defaults to dev mode.
+  build <dev|prod>     Derive version, build, and package into ./builds/*.vsix (prompts on conflicts). Requires explicit mode. Prod auto-bumps version_minor; dev skips bump. Filename includes mode.
+  major_update         Bump version_major and reset version_minor to 0 (writes .project.json)
   help      Show this help
 EOF
     ;;
-  help|*)
+  *)
     echo "Unknown command: $COMMAND"
     echo "Use ./run help to list commands."
     ;;
