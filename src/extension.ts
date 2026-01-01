@@ -56,7 +56,9 @@ interface CatalogProject {
 
 type Catalog = CatalogProject[];
 interface CatalogQuickPickItem extends vscode.QuickPickItem {
-  project: CatalogProject;
+  project?: CatalogProject;
+  isSortOption?: boolean;
+  sortKey?: string;
 }
 
 let trackerSingleton: ProjectTracker | undefined;
@@ -285,27 +287,11 @@ class ProjectTracker implements vscode.Disposable {
     await this.ensureInitialized();
     const settings = getExtensionSettings();
     const catalogUri = this.getCatalogUri(settings);
-    let catalog = await this.readCatalog(catalogUri);
+    const catalog = await this.readCatalog(catalogUri);
     if (catalog.length === 0) {
       void vscode.window.showInformationMessage('Harbormaster: No catalog entries. Add the current project first.');
       return;
     }
-
-    const sortOption = await vscode.window.showQuickPick(
-      [
-        { label: 'Last opened (desc)', sort: 'lastOpened' },
-        { label: 'Created (desc)', sort: 'created' },
-        { label: 'Name (A → Z)', sort: 'name' },
-        { label: 'Tags (A → Z)', sort: 'tags' },
-        { label: 'Last edited (desc)', sort: 'lastEdited' },
-      ],
-      { placeHolder: 'Sort projects by' }
-    );
-    if (!sortOption) {
-      return;
-    }
-
-    catalog = this.sortCatalog(catalog, sortOption.sort);
 
     const quickPick = vscode.window.createQuickPick<CatalogQuickPickItem>();
     quickPick.matchOnDescription = true;
@@ -318,18 +304,47 @@ class ProjectTracker implements vscode.Disposable {
       tooltip: 'Open in new window (acts like Cmd/Ctrl/Shift-click)',
     };
 
-    quickPick.buttons = [openNewButton];
-    quickPick.items = catalog.map((p) => ({
-      label: p.name,
-      description: p.tags && p.tags.length ? `Tags: ${p.tags.join(', ')}` : 'No tags',
-      detail: `Path: ${p.path} · Created: ${formatIsoDate(p.createdAt)}${
-        p.lastEditedAt ? ` · Edited: ${formatIsoDate(p.lastEditedAt)}` : ''
-      }${p.lastOpenedAt ? ` · Opened: ${formatIsoDate(p.lastOpenedAt)}` : ''}`,
-      project: p,
-      buttons: [openNewButton],
-    }));
+    const sortOptions: { label: string; sort: string }[] = [
+      { label: 'Last edited (desc)', sort: 'lastEdited' },
+      { label: 'Last opened (desc)', sort: 'lastOpened' },
+      { label: 'Created (desc)', sort: 'created' },
+      { label: 'Name (A → Z)', sort: 'name' },
+      { label: 'Tags (A → Z)', sort: 'tags' },
+    ];
 
     let forceNewWindow = false;
+    let currentSort = 'lastEdited';
+
+    const buildItems = (sortKey: string): CatalogQuickPickItem[] => {
+      const sortedCatalog = this.sortCatalog(catalog, sortKey);
+      const sortItems: CatalogQuickPickItem[] = sortOptions.map((o) => ({
+        label: `${o.sort === sortKey ? '$(check) ' : ''}${o.label}`,
+        description: '',
+        isSortOption: true,
+        sortKey: o.sort,
+      }));
+
+      const projectItems: CatalogQuickPickItem[] = sortedCatalog.map((p) => ({
+        label: p.name,
+        description: p.tags && p.tags.length ? `Tags: ${p.tags.join(', ')}` : 'No tags',
+        detail: `Path: ${p.path} · Created: ${formatIsoDate(p.createdAt)}${
+          p.lastEditedAt ? ` · Edited: ${formatIsoDate(p.lastEditedAt)}` : ''
+        }${p.lastOpenedAt ? ` · Opened: ${formatIsoDate(p.lastOpenedAt)}` : ''}`,
+        project: p,
+        buttons: [openNewButton],
+      }));
+
+      return [
+        { label: 'Sort by', kind: vscode.QuickPickItemKind.Separator } as CatalogQuickPickItem,
+        ...sortItems,
+        { label: 'Projects', kind: vscode.QuickPickItemKind.Separator } as CatalogQuickPickItem,
+        ...projectItems,
+      ];
+    };
+
+    quickPick.buttons = [openNewButton];
+    quickPick.items = buildItems(currentSort);
+
     quickPick.onDidTriggerButton((btn) => {
       if (btn === openNewButton) {
         forceNewWindow = true;
@@ -338,7 +353,7 @@ class ProjectTracker implements vscode.Disposable {
     });
 
     quickPick.onDidTriggerItemButton(async (event) => {
-      if (event.button === openNewButton) {
+      if (event.button === openNewButton && !event.item.isSortOption && event.item.project) {
         await this.openCatalogProject(event.item.project, catalogUri, catalog, true);
         quickPick.hide();
       }
@@ -348,6 +363,14 @@ class ProjectTracker implements vscode.Disposable {
       const selection = quickPick.selectedItems[0];
       if (!selection) {
         quickPick.hide();
+        return;
+      }
+      if (selection.isSortOption && selection.sortKey) {
+        currentSort = selection.sortKey;
+        quickPick.items = buildItems(currentSort);
+        return;
+      }
+      if (!selection.project) {
         return;
       }
       await this.openCatalogProject(selection.project, catalogUri, catalog, forceNewWindow);
@@ -367,7 +390,7 @@ class ProjectTracker implements vscode.Disposable {
         clone.sort((a, b) => (a.tags ?? []).join(',').localeCompare((b.tags ?? []).join(',')));
         break;
       case 'lastEdited':
-        clone.sort((a, b) => (b.lastEditedAt ?? '').localeCompare(a.lastEditedAt ?? ''));
+        clone.sort((a, b) => (b.lastEditedAt ?? b.createdAt ?? '').localeCompare(a.lastEditedAt ?? a.createdAt ?? ''));
         break;
       case 'created':
         clone.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
