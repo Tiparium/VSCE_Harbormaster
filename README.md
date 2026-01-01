@@ -7,14 +7,14 @@ Project-aware window titles plus a lightweight project tracker for VS Code. Keep
 - Status bar entry opens a quick menu for creating or opening the project config.
 - Activity Bar view lists quick actions grouped by section (Info, Project, Tags, Projects, Utility). The view shows the current project name/version/tags at a glance.
 - Tag registry: manage global tags (`.harbormaster/tags.json`) and assign/unassign them to the current project.
-- Project catalog: save the current project and open other Harbormaster projects from `.harbormaster/projects.json`, sortable by name, tags, created, last opened, and last edited. Open in the current window or a new one via the window button.
+- Project catalog: globally stored under Harbormaster’s extension storage (default filename `projects.json`). Save the current project and open others, sortable by name, tags, created, last opened, and last edited. Open in the current window or a new one via the window button.
 - Dev mode flag (`HARBORMASTER_DEV_TOOLS=1`) exposes internal tooling without shipping it to prod users.
 
 ## Quick start
 1. Install or run the extension (Run Extension in VS Code or install the VSIX).
 2. Command Palette → **Create project config** (search “Harbormaster” to find it). Enter a project name (required) and an optional version. This writes `.harbormaster/project.json` to the first workspace folder (you can keep the folder ignored in your repo).
 3. (Optional) Add tags: **Harbormaster: Add global tag** then **Assign tag to project**. Tags are stored in `.harbormaster/tags.json`.
-4. (Optional) Save the project to the catalog and open others via **Harbormaster: Add current project to catalog** and **Harbormaster: Open project from catalog** (`.harbormaster/projects.json`).
+4. (Optional) Save the project to the catalog and open others via **Harbormaster: Add current project to catalog** and **Harbormaster: Open project from catalog** (stored in Harbormaster’s global storage).
 5. Use the status bar item or Harbormaster Activity Bar view to open the menu, refresh the title, manage tags, and jump between projects.
 
 ## Project config (`.harbormaster/project.json`)
@@ -46,8 +46,9 @@ Global tag list available to all projects in the workspace:
 ```
 - Use commands to add/remove tags and assign/unassign them to the project. Removing a global tag also removes it from any project that used it.
 
-## Project catalog (`.harbormaster/projects.json`)
-- Stores saved Harbormaster projects with name, path, tags, created date, last edited, and last opened timestamps.
+## Project catalog (global storage)
+- Stored in the extension’s global storage directory (per-user), default filename `projects.json`.
+- Entries store name, path, tags, created date, last edited, and last opened timestamps.
 - Open dialog lets you sort by name, tags, created, last opened, or last edited. Use the window button to open in a new VS Code window.
 - Adding a project refreshes name/tags if it already exists, or creates a new entry otherwise.
 
@@ -70,7 +71,7 @@ Global tag list available to all projects in the workspace:
 ## Settings
 - `projectWindowTitle.configFile` (default `.harbormaster/project.json`): Relative path to the config file.
 - `projectWindowTitle.tagsFile` (default `.harbormaster/tags.json`): Relative path to the tags registry.
-- `projectWindowTitle.projectsFile` (default `.harbormaster/projects.json`): Relative path to the project catalog.
+- `projectWindowTitle.projectsFile` (default `projects.json`): File name/path (relative to Harbormaster global storage) for the project catalog.
 - `projectWindowTitle.projectNameKey` (default `project_name`)
 - `projectWindowTitle.projectVersionKey` (default `project_version`)
 - `projectWindowTitle.projectVersionMajorKey` (default `version_major`)

@@ -107,8 +107,8 @@
         },
         "projectWindowTitle.projectsFile": {
           "type": "string",
-          "default": ".harbormaster/projects.json",
-          "description": "Relative path to the Harbormaster project catalog file."
+          "default": "projects.json",
+          "description": "File name/path for the Harbormaster project catalog (relative to the extension's global storage)."
         },
         "projectWindowTitle.projectNameKey": {
           "type": "string",

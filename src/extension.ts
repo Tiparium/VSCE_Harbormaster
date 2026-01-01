@@ -7,7 +7,7 @@ const DEFAULT_VERSION_MAJOR_KEY = 'version_major';
 const DEFAULT_VERSION_MINOR_KEY = 'version_minor';
 const DEFAULT_VERSION_PRERELEASE_KEY = 'version_prerelease';
 const DEFAULT_TAGS_FILE = '.harbormaster/tags.json';
-const DEFAULT_PROJECTS_FILE = '.harbormaster/projects.json';
+const DEFAULT_PROJECTS_FILE = 'projects.json';
 const LEGACY_CONFIG_FILE = '.project.json';
 const DEFAULT_HEADLESS_PREFIX = '[Headless] ';
 const DEFAULT_NAMED_FORMAT = '${projectName}';
@@ -108,8 +108,9 @@ class ProjectTracker implements vscode.Disposable {
     await this.migrateLegacyConfig(folder, settings);
     await this.backupTagsFile(folder, settings);
     await this.ensureTagsFile(folder, settings);
-    await this.ensureProjectsFile(folder, settings);
-    await this.upsertCatalogEntry(folder, settings, { silent: true, requireExisting: true });
+    await this.ensureCatalogFile(settings);
+    await this.migrateWorkspaceCatalog(folder, settings);
+    await this.upsertCatalogEntry(folder, settings, { silent: true });
     this.registerWatchers(folder, settings);
     this.initialized = true;
   }
@@ -283,7 +284,7 @@ class ProjectTracker implements vscode.Disposable {
     }
     await this.ensureInitialized();
     const settings = getExtensionSettings();
-    const catalogUri = vscode.Uri.joinPath(folder.uri, settings.projectsFile);
+    const catalogUri = this.getCatalogUri(settings);
     let catalog = await this.readCatalog(catalogUri);
     if (catalog.length === 0) {
       void vscode.window.showInformationMessage('Harbormaster: No catalog entries. Add the current project first.');
@@ -391,6 +392,12 @@ class ProjectTracker implements vscode.Disposable {
     const now = new Date().toISOString();
     const updated = catalog.map((p) => (p.id === project.id ? { ...p, lastOpenedAt: now } : p));
     await this.writeCatalog(updated, catalogUri);
+  }
+
+  async catalogExists(): Promise<boolean> {
+    const settings = getExtensionSettings();
+    const catalogUri = this.getCatalogUri(settings);
+    return fileExists(catalogUri);
   }
 
   private async migrateLegacyConfig(folder: vscode.WorkspaceFolder, settings: ExtensionSettings): Promise<void> {
@@ -523,7 +530,6 @@ class ProjectTracker implements vscode.Disposable {
     const patterns = [
       new vscode.RelativePattern(folder, settings.configFile),
       new vscode.RelativePattern(folder, settings.tagsFile),
-      new vscode.RelativePattern(folder, settings.projectsFile),
       new vscode.RelativePattern(folder, LEGACY_CONFIG_FILE),
     ];
 
@@ -533,7 +539,7 @@ class ProjectTracker implements vscode.Disposable {
         pattern.pattern === settings.configFile || pattern.pattern === settings.tagsFile || pattern.pattern === LEGACY_CONFIG_FILE;
       const syncCatalog = () => {
         if (shouldAutoCatalog) {
-          void this.upsertCatalogEntry(folder, settings, { silent: true, requireExisting: true });
+          void this.upsertCatalogEntry(folder, settings, { silent: true });
         }
       };
       this.watchers.push(watcher);
@@ -578,25 +584,22 @@ class ProjectTracker implements vscode.Disposable {
     }
   }
 
-  private async ensureProjectsFile(folder: vscode.WorkspaceFolder, settings: ExtensionSettings): Promise<void> {
-    const projectsUri = vscode.Uri.joinPath(folder.uri, settings.projectsFile);
-    if (await fileExists(projectsUri)) {
+  private async ensureCatalogFile(settings: ExtensionSettings): Promise<void> {
+    const catalogUri = this.getCatalogUri(settings);
+    if (await fileExists(catalogUri)) {
       return;
     }
-    await this.ensureDirectory(projectsUri);
-    await this.writeCatalog([], projectsUri);
+    await this.ensureDirectory(catalogUri);
+    await this.writeCatalog([], catalogUri);
   }
 
   private async upsertCatalogEntry(
     folder: vscode.WorkspaceFolder,
     settings: ExtensionSettings,
-    options: { silent?: boolean; requireExisting?: boolean } = {}
+    options: { silent?: boolean } = {}
   ): Promise<void> {
-    const { silent = false, requireExisting = false } = options;
-    const catalogUri = vscode.Uri.joinPath(folder.uri, settings.projectsFile);
-    if (requireExisting && !(await fileExists(catalogUri))) {
-      return;
-    }
+    const { silent = false } = options;
+    const catalogUri = this.getCatalogUri(settings);
     const configUri = vscode.Uri.joinPath(folder.uri, settings.configFile);
     if (!(await fileExists(configUri))) {
       if (!silent) {
@@ -636,6 +639,36 @@ class ProjectTracker implements vscode.Disposable {
       void vscode.window.showInformationMessage(`Harbormaster: saved "${name}" to catalog.`);
     }
   }
+
+  private getCatalogUri(settings: ExtensionSettings): vscode.Uri {
+    return vscode.Uri.joinPath(this.context.globalStorageUri, settings.projectsFile);
+  }
+
+  private async migrateWorkspaceCatalog(folder: vscode.WorkspaceFolder, settings: ExtensionSettings): Promise<void> {
+    const legacyCatalogUri = vscode.Uri.joinPath(folder.uri, settings.projectsFile);
+    if (!(await fileExists(legacyCatalogUri))) {
+      return;
+    }
+    const catalogUri = this.getCatalogUri(settings);
+    const legacy = await this.readCatalog(legacyCatalogUri);
+    if (legacy.length === 0) {
+      await vscode.workspace.fs.delete(legacyCatalogUri);
+      return;
+    }
+    const existing = await this.readCatalog(catalogUri);
+    const merged = [...existing];
+    for (const entry of legacy) {
+      const idx = merged.findIndex((p) => p.path === entry.path);
+      if (idx >= 0) {
+        merged[idx] = { ...merged[idx], ...entry };
+      } else {
+        merged.push(entry);
+      }
+    }
+    await this.ensureDirectory(catalogUri);
+    await this.writeCatalog(merged, catalogUri);
+    await vscode.workspace.fs.delete(legacyCatalogUri);
+  }
 }
 
 class ActionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
@@ -673,7 +706,7 @@ class ActionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
     const settings = getExtensionSettings();
     const configExists = folder ? await fileExists(vscode.Uri.joinPath(folder.uri, settings.configFile)) : false;
     const tagsExists = folder ? await fileExists(vscode.Uri.joinPath(folder.uri, settings.tagsFile)) : false;
-    const projectsExists = folder ? await fileExists(vscode.Uri.joinPath(folder.uri, settings.projectsFile)) : false;
+    const projectsExists = await this.tracker.catalogExists();
 
     const info = await this.tracker.getCurrentProjectInfo(settings);
     const infoItems: ActionTreeItem[] = [
@@ -711,6 +744,17 @@ class ActionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
       new ActionTreeItem('Command palette (menu)', 'projectWindowTitle.showMenu', 'list-selection'),
     ];
 
+    sections.push(
+      new SectionTreeItem(
+        'Projects',
+        [
+          new ActionTreeItem('Open project from catalog', 'projectWindowTitle.openProjectFromCatalog', 'folder-opened'),
+          new ActionTreeItem('Add current project to catalog', 'projectWindowTitle.addProjectToCatalog', 'add'),
+        ],
+        'repo',
+        projectsExists ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed
+      )
+    );
     sections.push(new SectionTreeItem('Info', infoItems, 'info'));
     sections.push(new SectionTreeItem('Project', projectItems, 'briefcase'));
     sections.push(
@@ -726,17 +770,6 @@ class ActionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
           ),
         ],
         'tag'
-      )
-    );
-    sections.push(
-      new SectionTreeItem(
-        'Projects',
-        [
-          new ActionTreeItem('Open project from catalog', 'projectWindowTitle.openProjectFromCatalog', 'folder-opened'),
-          new ActionTreeItem('Add current project to catalog', 'projectWindowTitle.addProjectToCatalog', 'add'),
-        ],
-        'repo',
-        projectsExists ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed
       )
     );
     sections.push(new SectionTreeItem('Utility', utilityItems, 'settings-gear', vscode.TreeItemCollapsibleState.Collapsed));
