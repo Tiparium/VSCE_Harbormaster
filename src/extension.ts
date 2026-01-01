@@ -423,6 +423,16 @@ class ProjectTracker implements vscode.Disposable {
     return fileExists(catalogUri);
   }
 
+  async isProjectInCatalog(folder: vscode.WorkspaceFolder, settings?: ExtensionSettings): Promise<boolean> {
+    const resolvedSettings = settings ?? getExtensionSettings();
+    const catalogUri = this.getCatalogUri(resolvedSettings);
+    if (!(await fileExists(catalogUri))) {
+      return false;
+    }
+    const catalog = await this.readCatalog(catalogUri);
+    return catalog.some((p) => p.path === folder.uri.fsPath);
+  }
+
   private async migrateLegacyConfig(folder: vscode.WorkspaceFolder, settings: ExtensionSettings): Promise<void> {
     if (settings.configFile !== DEFAULT_CONFIG_FILE) {
       return;
@@ -730,6 +740,7 @@ class ActionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
     const configExists = folder ? await fileExists(vscode.Uri.joinPath(folder.uri, settings.configFile)) : false;
     const tagsExists = folder ? await fileExists(vscode.Uri.joinPath(folder.uri, settings.tagsFile)) : false;
     const projectsExists = await this.tracker.catalogExists();
+    const inCatalog = folder ? await this.tracker.isProjectInCatalog(folder, settings) : false;
 
     const info = await this.tracker.getCurrentProjectInfo(settings);
     const infoItems: ActionTreeItem[] = [
@@ -748,6 +759,9 @@ class ActionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
         : new ActionTreeItem('Create project config', 'projectWindowTitle.createConfig', 'file-add'),
       new ActionTreeItem('Refresh window title', 'projectWindowTitle.refresh', 'refresh'),
     ];
+    if (!inCatalog && folder) {
+      projectItems.push(new ActionTreeItem('Add current project to catalog', 'projectWindowTitle.addProjectToCatalog', 'add'));
+    }
 
     const globalTagItems: ActionTreeItem[] = [
       new ActionTreeItem('Add global tag', 'projectWindowTitle.addGlobalTag', 'add'),
@@ -772,7 +786,9 @@ class ActionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
         'Projects',
         [
           new ActionTreeItem('Open project from catalog', 'projectWindowTitle.openProjectFromCatalog', 'folder-opened'),
-          new ActionTreeItem('Add current project to catalog', 'projectWindowTitle.addProjectToCatalog', 'add'),
+          ...(inCatalog || !folder
+            ? []
+            : [new ActionTreeItem('Add current project to catalog', 'projectWindowTitle.addProjectToCatalog', 'add')]),
         ],
         'repo',
         projectsExists ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed
