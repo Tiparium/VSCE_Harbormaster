@@ -1,14 +1,176 @@
 import * as vscode from 'vscode';
 
-const DEFAULT_CONFIG_FILE = '.harbormaster/project.json';
+const DEFAULT_META_DIR = '.harbormaster/.meta';
+const DEFAULT_CONTEXT_DIR = '.harbormaster/.context';
+const DEFAULT_CONFIG_FILE = `${DEFAULT_META_DIR}/project.json`;
 const DEFAULT_PROJECT_KEY = 'project_name';
 const DEFAULT_VERSION_KEY = 'project_version';
 const DEFAULT_VERSION_MAJOR_KEY = 'version_major';
 const DEFAULT_VERSION_MINOR_KEY = 'version_minor';
 const DEFAULT_VERSION_PRERELEASE_KEY = 'version_prerelease';
-const DEFAULT_TAGS_FILE = '.harbormaster/tags.json';
+const DEFAULT_TAGS_FILE = `${DEFAULT_META_DIR}/tags.json`;
 const DEFAULT_PROJECTS_FILE = 'projects.json';
+const REQUIRED_CONTEXT_FILES = [
+  'DIRECTIVES.md',
+  'PROJECT_STATE.md',
+  'PERSONALITY.md',
+  'DOCUMENTS.md',
+  'SHELF.md',
+];
 const LEGACY_CONFIG_FILE = '.project.json';
+const LEGACY_META_DIR = '.harbormaster';
+const LEGACY_CONTEXT_DIR = '.context';
+const AGENTS_FILE_CANDIDATES = ['AGENTS.md', 'agents.md'];
+const AGENTS_DIRECTIVES_MARKER = 'Harbormaster directives notice';
+const DIRECTIVES_TEMPLATE = [
+  '## Local "Working Memory" system (two files, stored in `.harbormaster/.context/`)',
+  '* All important commands must be recorded in `.harbormaster/.context/DOCUMENTS.md`.',
+  '',
+  '### File 1: `PROJECT_STATE.md` (small, always read)',
+  '',
+  '**Purpose:** Current working context that should be loaded at the start of every session/task.',
+  '',
+  '**Hard rules:**',
+  '',
+  '* Keep this file **short** (aim ~10-40 lines). It is a snapshot, not a diary.',
+  '* The agent must **read this file before doing any work**.',
+  '* The agent should **update this file only when the project state changes** (goal/plan/constraints/etc.), not every message.',
+  '',
+  '**Suggested sections (keep terse):**',
+  '',
+  '* **Goal (current):** what we are trying to accomplish right now',
+  '* **Constraints:** must-follow rules, naming conventions, environment notes',
+  '* **Current plan:** 3-7 bullet steps',
+  '* **Status:** what is done / what is next',
+  '* **Open questions:** unknowns blocking progress',
+  '* **Assumptions (active):** key assumptions currently being relied upon (bullets)',
+  '',
+  '### File 2: `DECISIONS_LOG.md` (append-only)',
+  '',
+  '**Purpose:** A durable record of important decisions so the project does not "forget why."',
+  '',
+  '**Rules:**',
+  '',
+  '* Append entries only when something is decided/changed that would matter later.',
+  '* Each entry should be short and include:',
+  '',
+  '  * **Date**',
+  '  * **Decision**',
+  '  * **Reason**',
+  '  * **Impact / files touched** (paths if relevant)',
+  '',
+  '**Format example:**',
+  '',
+  '* `2025-12-15 — Decision: Use dual-file memory. Reason: state stays small; decisions stay traceable. Impact: added PROJECT_STATE.md and DECISIONS_LOG.md.`',
+  '',
+  '---',
+  '',
+  '## Required behavior: Assumptions must be surfaced',
+  '',
+  'Whenever the agent takes an action **because of an assumption**, the agent must explicitly state it in its reply, e.g.:',
+  '',
+  '* **Assumption used:** "We are using Node 20 because the repo targets it."',
+  '* **If unsure:** "This is an assumption—please confirm or correct."',
+  '',
+  'And if the assumption is new or changed, it must also be added/updated in:',
+  '',
+  '* `PROJECT_STATE.md` → **Assumptions (active)**',
+  '* Any new CLI commands must be documented in `./run help`.',
+  '',
+  '## MISSING FILES',
+  'If a file is in `.harbormaster/.context` that is not mentioned above, query the user as to its purpose.',
+  '',
+  '---',
+  '',
+  '## Operating loop',
+  '',
+  '1. **Start of session/task:** read `PROJECT_STATE.md`, `PERSONALITY.md`, and `DOCUMENTS.md` (once per session unless you need to edit it or are explicitly told to reread).',
+  '2. Do the work.',
+  '3. If state changed: update `PROJECT_STATE.md` (keep it compact).',
+  '4. If a major notable decision was made (architecture/behavioral choices, not routine maintenance): append to `DECISIONS_LOG.md`.',
+  '5. In replies: always surface any **Assumption used** that influenced the work.',
+  '',
+  '## Self-tracking reminders',
+  '- Check `.harbormaster/.context/SHELF.md` occasionally and surface shelved items when working on related topics.',
+  '',
+  '## Instructions',
+  '- Run a Self Check: reread all context files and summarize differences from working memory.',
+  '',
+  '## User-added directives',
+  '- Add any directives you request here to keep them grouped and easy to find.',
+  '',
+].join('\n');
+const AGENTS_TEMPLATE = [
+  '# AGENTS',
+  '',
+  'Move most directive content into `.harbormaster/.context/DIRECTIVES.md`,',
+  'then remove those moved directives and this notice block from this file.',
+  'Keep this file as the entrypoint that references DIRECTIVES.md.',
+  '',
+  'See `.harbormaster/.context/DIRECTIVES.md` for most directives.',
+  '',
+].join('\n');
+const AGENTS_DIRECTIVES_NOTICE = [
+  `## ${AGENTS_DIRECTIVES_MARKER}`,
+  'Move most directive content into `.harbormaster/.context/DIRECTIVES.md`,',
+  'then remove those moved directives and this notice block from this file.',
+  'Keep this file as the entrypoint that references DIRECTIVES.md.',
+  'This is manual to avoid automation conflicts.',
+  '',
+].join('\n');
+const DEFAULT_CONTEXT_FILE_CONTENTS: Record<string, string> = {
+  'DIRECTIVES.md': DIRECTIVES_TEMPLATE,
+  'PROJECT_STATE.md': [
+    '# PROJECT STATE',
+    '',
+    '## Current goals',
+    '- ',
+    '',
+    '## Constraints / assumptions',
+    '- ',
+    '',
+    '## Plan',
+    '- ',
+    '',
+    '## Status',
+    '- ',
+    '',
+    '## Open questions',
+    '- ',
+    '',
+    '## Active assumptions',
+    '- ',
+    '',
+  ].join('\n'),
+  'PERSONALITY.md': ['Tone: ', ''].join('\n'),
+  'DOCUMENTS.md': ['# Command Reference', ''].join('\n'),
+  'SHELF.md': [
+    '## Shelf',
+    '',
+    '### Immediate Shelf',
+    '0) #',
+    '1) #',
+    '2) #',
+    '3) #',
+    '4) #',
+    '5) #',
+    '6) #',
+    '7) #',
+    '8) #',
+    '9) #',
+    '',
+    '### Top Shelf',
+    '',
+    '### Middle Shelf',
+    '',
+    '### Bottom Shelf',
+    '',
+    '### Long Term',
+    '',
+    '### Completed',
+    '',
+  ].join('\n'),
+};
 const DEFAULT_HEADLESS_PREFIX = '[Headless] ';
 const DEFAULT_NAMED_FORMAT = '${projectName}';
 const DEFAULT_VERSION_FORMAT = '${projectName} (${projectVersion})';
@@ -85,6 +247,8 @@ class ProjectTracker implements vscode.Disposable {
   private disposables: vscode.Disposable[] = [];
   private initialized = false;
   private watchers: vscode.FileSystemWatcher[] = [];
+  private diagnostics?: vscode.DiagnosticCollection;
+  private treeView?: vscode.TreeView<TreeNode>;
 
   constructor(private readonly context: vscode.ExtensionContext) {
     void this.ensureInitialized();
@@ -107,14 +271,19 @@ class ProjectTracker implements vscode.Disposable {
     }
 
     const settings = getExtensionSettings();
-    await this.migrateLegacyConfig(folder, settings);
     await this.backupTagsFile(folder, settings);
-    await this.ensureTagsFile(folder, settings);
     await this.ensureCatalogFile(settings);
     await this.migrateWorkspaceCatalog(folder, settings);
     await this.upsertCatalogEntry(folder, settings, { silent: true });
     this.registerWatchers(folder, settings);
+    await this.refreshHealth();
     this.initialized = true;
+  }
+
+  setHealthIndicators(view: vscode.TreeView<TreeNode>, diagnostics: vscode.DiagnosticCollection): void {
+    this.treeView = view;
+    this.diagnostics = diagnostics;
+    void this.refreshHealth();
   }
 
   async getProjectTags(config: Record<string, unknown>): Promise<string[]> {
@@ -267,6 +436,84 @@ class ProjectTracker implements vscode.Disposable {
     void vscode.window.showInformationMessage(`Harbormaster: removed tag "${pick}" from project.`);
   }
 
+  async rebuildHarbormasterState(): Promise<void> {
+    const folder = getPrimaryWorkspaceFolder();
+    if (!folder) {
+      void vscode.window.showErrorMessage('Harbormaster: No workspace folder open.');
+      return;
+    }
+
+    await this.ensureInitialized();
+    const settings = getExtensionSettings();
+    const created: string[] = [];
+    const updated: string[] = [];
+    const warnings: string[] = [];
+    const deleted: string[] = [];
+
+    const legacyResult = await this.mergeLegacyMetadata(folder, settings);
+    created.push(...legacyResult.created);
+    updated.push(...legacyResult.updated);
+    warnings.push(...legacyResult.warnings);
+    deleted.push(...legacyResult.deleted);
+
+    const scaffolded = await this.scaffoldMissingFiles(folder, settings);
+    created.push(...scaffolded.created);
+    warnings.push(...scaffolded.warnings);
+
+    await this.migrateLegacyContext(folder);
+    await this.ensureAgentsDirectiveNotice(folder);
+    await this.refreshHealth();
+    this.onDidChangeEmitter.fire();
+
+    if (created.length === 0 && updated.length === 0 && warnings.length === 0 && deleted.length === 0) {
+      void vscode.window.showInformationMessage('Harbormaster: project state already complete.');
+      return;
+    }
+
+    const details = [
+      created.length ? `Created: ${created.join(', ')}` : undefined,
+      updated.length ? `Updated: ${updated.join(', ')}` : undefined,
+      deleted.length ? `Removed legacy: ${deleted.join(', ')}` : undefined,
+      warnings.length ? `Warnings: ${warnings.join('; ')}` : undefined,
+    ]
+      .filter(Boolean)
+      .join(' | ');
+    void vscode.window.showInformationMessage(`Harbormaster: rebuild complete. ${details}`);
+  }
+
+  async scaffoldProjectState(options: { silent?: boolean } = {}): Promise<void> {
+    const { silent = false } = options;
+    const folder = getPrimaryWorkspaceFolder();
+    if (!folder) {
+      if (!silent) {
+        void vscode.window.showErrorMessage('Harbormaster: No workspace folder open.');
+      }
+      return;
+    }
+
+    await this.ensureInitialized();
+    const settings = getExtensionSettings();
+    const scaffolded = await this.scaffoldMissingFiles(folder, settings);
+    await this.ensureAgentsDirectiveNotice(folder);
+    await this.refreshHealth();
+    this.onDidChangeEmitter.fire();
+
+    if (silent) {
+      return;
+    }
+    if (scaffolded.created.length === 0 && scaffolded.warnings.length === 0) {
+      void vscode.window.showInformationMessage('Harbormaster: project state already complete.');
+      return;
+    }
+    const details = [
+      scaffolded.created.length ? `Created: ${scaffolded.created.join(', ')}` : undefined,
+      scaffolded.warnings.length ? `Warnings: ${scaffolded.warnings.join('; ')}` : undefined,
+    ]
+      .filter(Boolean)
+      .join(' | ');
+    void vscode.window.showInformationMessage(`Harbormaster: project state scaffolding complete. ${details}`);
+  }
+
   async addProjectToCatalog(): Promise<void> {
     const folder = getPrimaryWorkspaceFolder();
     if (!folder) {
@@ -297,11 +544,15 @@ class ProjectTracker implements vscode.Disposable {
     quickPick.matchOnDescription = true;
     quickPick.matchOnDetail = true;
     quickPick.title = 'Open Harbormaster project';
-    quickPick.placeholder = 'Enter to open here. Click the window button for a new window.';
+    quickPick.placeholder = 'Enter to open here. Use item buttons to pick window target.';
 
-    const openNewButton: vscode.QuickInputButton = {
-      iconPath: new vscode.ThemeIcon('window-new'),
-      tooltip: 'Open in new window (acts like Cmd/Ctrl/Shift-click)',
+    const openHereItemButton: vscode.QuickInputButton = {
+      iconPath: new vscode.ThemeIcon('window'),
+      tooltip: 'Open here',
+    };
+    const openNewItemButton: vscode.QuickInputButton = {
+      iconPath: new vscode.ThemeIcon('open-preview'),
+      tooltip: 'Open in new window',
     };
 
     const sortOptions: { label: string; sort: string }[] = [
@@ -312,7 +563,6 @@ class ProjectTracker implements vscode.Disposable {
       { label: 'Tags (A → Z)', sort: 'tags' },
     ];
 
-    let forceNewWindow = false;
     let currentSort = 'lastEdited';
 
     const buildItems = (sortKey: string): CatalogQuickPickItem[] => {
@@ -331,7 +581,7 @@ class ProjectTracker implements vscode.Disposable {
           p.lastEditedAt ? ` · Edited: ${formatIsoDate(p.lastEditedAt)}` : ''
         }${p.lastOpenedAt ? ` · Opened: ${formatIsoDate(p.lastOpenedAt)}` : ''}`,
         project: p,
-        buttons: [openNewButton],
+        buttons: [openHereItemButton, openNewItemButton],
       }));
 
       return [
@@ -342,18 +592,18 @@ class ProjectTracker implements vscode.Disposable {
       ];
     };
 
-    quickPick.buttons = [openNewButton];
     quickPick.items = buildItems(currentSort);
 
-    quickPick.onDidTriggerButton((btn) => {
-      if (btn === openNewButton) {
-        forceNewWindow = true;
-        quickPick.buttons = [];
-      }
-    });
-
     quickPick.onDidTriggerItemButton(async (event) => {
-      if (event.button === openNewButton && !event.item.isSortOption && event.item.project) {
+      if (event.item.isSortOption || !event.item.project) {
+        return;
+      }
+      if (event.button === openHereItemButton) {
+        await this.openCatalogProject(event.item.project, catalogUri, catalog, false);
+        quickPick.hide();
+        return;
+      }
+      if (event.button === openNewItemButton) {
         await this.openCatalogProject(event.item.project, catalogUri, catalog, true);
         quickPick.hide();
       }
@@ -373,7 +623,7 @@ class ProjectTracker implements vscode.Disposable {
       if (!selection.project) {
         return;
       }
-      await this.openCatalogProject(selection.project, catalogUri, catalog, forceNewWindow);
+      await this.openCatalogProject(selection.project, catalogUri, catalog, false);
       quickPick.hide();
     });
 
@@ -409,11 +659,84 @@ class ProjectTracker implements vscode.Disposable {
     catalog: Catalog,
     forceNewWindow: boolean
   ): Promise<void> {
-    await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(project.path), {
+    let targetPath = project.path;
+    let catalogCopy = [...catalog];
+    const settings = getExtensionSettings();
+
+    const metadataExists = async (folderPath: string): Promise<boolean> => {
+      const folderUri = vscode.Uri.file(folderPath);
+      const metaUri = vscode.Uri.joinPath(folderUri, settings.configFile);
+      if (await fileExists(metaUri)) {
+        return true;
+      }
+      const legacyMetaUri = vscode.Uri.joinPath(folderUri, LEGACY_META_DIR, 'project.json');
+      if (await fileExists(legacyMetaUri)) {
+        return true;
+      }
+      const legacyUri = vscode.Uri.joinPath(folderUri, LEGACY_CONFIG_FILE);
+      return fileExists(legacyUri);
+    };
+
+    const pathExists = await fileExists(vscode.Uri.file(project.path));
+    const metaExists = pathExists ? await metadataExists(project.path) : false;
+    if (!pathExists || !metaExists) {
+      const actions: vscode.MessageItem[] = [];
+      actions.push({ title: 'Select folder with metadata' });
+      const currentFolder = getPrimaryWorkspaceFolder();
+      if (currentFolder) {
+        actions.push({ title: 'Use current workspace' });
+      }
+      actions.push({ title: 'Remove from catalog' });
+      const choice = await vscode.window.showWarningMessage<vscode.MessageItem>(
+        `Project ${!pathExists ? 'path' : 'metadata'} not found:\n${project.path}`,
+        { modal: true },
+        ...actions
+      );
+      if (!choice) {
+        return;
+      }
+      if (choice.title === 'Remove from catalog') {
+        catalogCopy = catalog.filter((p) => p.id !== project.id);
+        await this.writeCatalog(catalogCopy, catalogUri);
+        return;
+      }
+      if (choice.title === 'Use current workspace') {
+        const current = getPrimaryWorkspaceFolder();
+        if (!current) {
+          return;
+        }
+        targetPath = current.uri.fsPath;
+      } else if (choice.title === 'Select folder with metadata') {
+        const picked = await vscode.window.showOpenDialog({
+          canSelectFiles: false,
+          canSelectFolders: true,
+          canSelectMany: false,
+          openLabel: 'Use folder',
+        });
+        if (!picked || picked.length === 0) {
+          return;
+        }
+        targetPath = picked[0].fsPath;
+      }
+      const hasMeta = await metadataExists(targetPath);
+      if (!hasMeta) {
+        void vscode.window.showWarningMessage(
+          `Harbormaster metadata (${settings.configFile}) not found under:\n${targetPath}\nCatalog entry unchanged.`
+        );
+        return;
+      }
+      const now = new Date().toISOString();
+      catalogCopy = catalog.map((p) =>
+        p.id === project.id ? { ...p, path: targetPath, lastEditedAt: now } : p
+      );
+      await this.writeCatalog(catalogCopy, catalogUri);
+    }
+
+    await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(targetPath), {
       forceNewWindow,
     });
     const now = new Date().toISOString();
-    const updated = catalog.map((p) => (p.id === project.id ? { ...p, lastOpenedAt: now } : p));
+    const updated = catalogCopy.map((p) => (p.id === project.id ? { ...p, lastOpenedAt: now } : p));
     await this.writeCatalog(updated, catalogUri);
   }
 
@@ -433,31 +756,398 @@ class ProjectTracker implements vscode.Disposable {
     return catalog.some((p) => p.path === folder.uri.fsPath);
   }
 
-  private async migrateLegacyConfig(folder: vscode.WorkspaceFolder, settings: ExtensionSettings): Promise<void> {
-    if (settings.configFile !== DEFAULT_CONFIG_FILE) {
-      return;
+  private async mergeLegacyMetadata(
+    folder: vscode.WorkspaceFolder,
+    settings: ExtensionSettings
+  ): Promise<{ created: string[]; updated: string[]; warnings: string[]; deleted: string[] }> {
+    const result = { created: [] as string[], updated: [] as string[], warnings: [] as string[], deleted: [] as string[] };
+    if (settings.configFile !== DEFAULT_CONFIG_FILE || settings.tagsFile !== DEFAULT_TAGS_FILE) {
+      return result;
     }
 
-    const newUri = vscode.Uri.joinPath(folder.uri, settings.configFile);
-    const legacyUri = vscode.Uri.joinPath(folder.uri, LEGACY_CONFIG_FILE);
+    const configUri = vscode.Uri.joinPath(folder.uri, settings.configFile);
+    const tagsUri = vscode.Uri.joinPath(folder.uri, settings.tagsFile);
+    const legacyMetaConfigUri = vscode.Uri.joinPath(folder.uri, LEGACY_META_DIR, 'project.json');
+    const legacyConfigUri = vscode.Uri.joinPath(folder.uri, LEGACY_CONFIG_FILE);
+    const legacyTagsUri = vscode.Uri.joinPath(folder.uri, LEGACY_META_DIR, 'tags.json');
 
-    // If the new file exists and the legacy file still lingers, remove the legacy copy.
-    if (await fileExists(newUri)) {
-      if (await fileExists(legacyUri)) {
-        await vscode.workspace.fs.delete(legacyUri);
+    const newConfigExists = await fileExists(configUri);
+    const newTagsExists = await fileExists(tagsUri);
+    const newConfigCorrupt = newConfigExists ? await this.isJsonCorrupt(configUri) : false;
+    const newTagsCorrupt = newTagsExists ? await this.isJsonCorrupt(tagsUri) : false;
+
+    const newConfig = newConfigExists && !newConfigCorrupt ? await this.readConfig(configUri) : undefined;
+    const newTags = newTagsExists && !newTagsCorrupt ? await this.readTagsFile(folder, settings) : undefined;
+
+    const legacyMetaConfigExists = await fileExists(legacyMetaConfigUri);
+    const legacyConfigExists = await fileExists(legacyConfigUri);
+    const legacyTagsExists = await fileExists(legacyTagsUri);
+
+    const legacyMetaConfigCorrupt = legacyMetaConfigExists ? await this.isJsonCorrupt(legacyMetaConfigUri) : false;
+    const legacyConfigCorrupt = legacyConfigExists ? await this.isJsonCorrupt(legacyConfigUri) : false;
+    const legacyTagsCorrupt = legacyTagsExists ? await this.isJsonCorrupt(legacyTagsUri) : false;
+
+    if (newConfigCorrupt) {
+      result.warnings.push(`${settings.configFile} is not valid JSON`);
+    }
+    if (newTagsCorrupt) {
+      result.warnings.push(`${settings.tagsFile} is not valid JSON`);
+    }
+    if (legacyMetaConfigCorrupt) {
+      result.warnings.push(`${LEGACY_META_DIR}/project.json is not valid JSON`);
+    }
+    if (legacyConfigCorrupt) {
+      result.warnings.push(`${LEGACY_CONFIG_FILE} is not valid JSON`);
+    }
+    if (legacyTagsCorrupt) {
+      result.warnings.push(`${LEGACY_META_DIR}/tags.json is not valid JSON`);
+    }
+
+    const legacyConfig =
+      legacyMetaConfigExists && !legacyMetaConfigCorrupt
+        ? await this.readConfig(legacyMetaConfigUri)
+        : legacyConfigExists && !legacyConfigCorrupt
+          ? await this.readConfig(legacyConfigUri)
+          : undefined;
+    const legacyTags = legacyTagsExists && !legacyTagsCorrupt ? await this.readTagsFile(folder, settings, legacyTagsUri) : undefined;
+
+    const shouldWriteConfig = legacyConfig !== undefined || !newConfigExists;
+    if (shouldWriteConfig) {
+      const mergedConfig = this.mergeConfigPayload(folder, newConfig, legacyConfig);
+      if (!newConfigExists || newConfigCorrupt) {
+        result.created.push(settings.configFile);
+      } else {
+        result.updated.push(settings.configFile);
+      }
+      await this.writeConfig(configUri, mergedConfig, settings.configFile);
+    }
+
+    const shouldWriteTags = legacyTags !== undefined || !newTagsExists;
+    if (shouldWriteTags) {
+      const mergedTags = legacyTags ?? newTags ?? [];
+      if (!newTagsExists || newTagsCorrupt) {
+        result.created.push(settings.tagsFile);
+      } else {
+        result.updated.push(settings.tagsFile);
+      }
+      await this.writeTagsFile(folder, settings, mergedTags);
+    }
+
+    if (legacyMetaConfigExists && !legacyMetaConfigCorrupt) {
+      await vscode.workspace.fs.delete(legacyMetaConfigUri);
+      result.deleted.push(`${LEGACY_META_DIR}/project.json`);
+    }
+    if (legacyConfigExists && !legacyConfigCorrupt) {
+      await vscode.workspace.fs.delete(legacyConfigUri);
+      result.deleted.push(LEGACY_CONFIG_FILE);
+    }
+    if (legacyTagsExists && !legacyTagsCorrupt) {
+      await vscode.workspace.fs.delete(legacyTagsUri);
+      result.deleted.push(`${LEGACY_META_DIR}/tags.json`);
+    }
+
+    return result;
+  }
+
+  private async migrateLegacyContext(folder: vscode.WorkspaceFolder): Promise<void> {
+    const legacyContextUri = vscode.Uri.joinPath(folder.uri, LEGACY_CONTEXT_DIR);
+    const newContextUri = vscode.Uri.joinPath(folder.uri, DEFAULT_CONTEXT_DIR);
+    await this.copyDirectoryContentsIfMissing(legacyContextUri, newContextUri);
+  }
+
+  private async createDefaultConfig(folder: vscode.WorkspaceFolder, settings: ExtensionSettings): Promise<void> {
+    const payload = this.getDefaultConfigPayload(folder);
+    const targetUri = vscode.Uri.joinPath(folder.uri, settings.configFile);
+    await this.writeConfig(targetUri, payload, settings.configFile);
+  }
+
+  private getDefaultConfigPayload(folder: vscode.WorkspaceFolder): Record<string, any> {
+    return {
+      project_name: folder.name,
+      project_version: '',
+      version_major: 0,
+      version_minor: 0,
+      version_prerelease: '',
+      tags: [],
+      version_scheme_note:
+        'version = <major>.<minor>.<YY>-<prerelease>; YY is last two digits of build year (computed automatically); prerelease is optional.',
+    };
+  }
+
+  private mergeConfigPayload(
+    folder: vscode.WorkspaceFolder,
+    newConfig?: Record<string, any>,
+    legacyConfig?: Record<string, any>
+  ): Record<string, any> {
+    const base = this.getDefaultConfigPayload(folder);
+    const merged = {
+      ...base,
+      ...(newConfig ?? {}),
+      ...(legacyConfig ?? {}),
+    };
+    const legacyTags = Array.isArray(legacyConfig?.tags) ? legacyConfig?.tags : undefined;
+    const newTags = Array.isArray(newConfig?.tags) ? newConfig?.tags : undefined;
+    if (legacyTags) {
+      merged.tags = dedupeTags(legacyTags);
+    } else if (newTags) {
+      merged.tags = dedupeTags(newTags);
+    } else {
+      merged.tags = [];
+    }
+    return merged;
+  }
+
+  private async ensureAgentsDirectiveNotice(folder: vscode.WorkspaceFolder): Promise<void> {
+    const agentsUri = await this.findAgentsFile(folder);
+    if (!agentsUri) {
+      return;
+    }
+    const content = await vscode.workspace.fs.readFile(agentsUri);
+    const text = Buffer.from(content).toString('utf8');
+    if (text.includes(AGENTS_DIRECTIVES_MARKER) || text.includes('DIRECTIVES.md')) {
+      return;
+    }
+    const trimmed = text.endsWith('\n') ? text : `${text}\n`;
+    const updated = `${trimmed}\n${AGENTS_DIRECTIVES_NOTICE}`;
+    await vscode.workspace.fs.writeFile(agentsUri, Buffer.from(updated, 'utf8'));
+  }
+
+  private async findAgentsFile(folder: vscode.WorkspaceFolder): Promise<vscode.Uri | undefined> {
+    for (const candidate of AGENTS_FILE_CANDIDATES) {
+      const uri = vscode.Uri.joinPath(folder.uri, candidate);
+      if (await fileExists(uri)) {
+        return uri;
+      }
+    }
+    return undefined;
+  }
+
+  private async scaffoldMissingFiles(
+    folder: vscode.WorkspaceFolder,
+    settings: ExtensionSettings
+  ): Promise<{ created: string[]; warnings: string[] }> {
+    const created: string[] = [];
+    const warnings: string[] = [];
+
+    const configUri = vscode.Uri.joinPath(folder.uri, settings.configFile);
+    if (!(await fileExists(configUri))) {
+      await this.createDefaultConfig(folder, settings);
+      created.push(settings.configFile);
+    } else if (await this.isJsonCorrupt(configUri)) {
+      warnings.push(`${settings.configFile} is not valid JSON`);
+    }
+
+    const tagsUri = vscode.Uri.joinPath(folder.uri, settings.tagsFile);
+    if (!(await fileExists(tagsUri))) {
+      await this.ensureTagsFile(folder, settings);
+      created.push(settings.tagsFile);
+    } else if (await this.isJsonCorrupt(tagsUri)) {
+      warnings.push(`${settings.tagsFile} is not valid JSON`);
+    }
+
+    for (const name of REQUIRED_CONTEXT_FILES) {
+      const relativePath = `${DEFAULT_CONTEXT_DIR}/${name}`;
+      const uri = vscode.Uri.joinPath(folder.uri, relativePath);
+      if (await fileExists(uri)) {
+        continue;
+      }
+      const payload = DEFAULT_CONTEXT_FILE_CONTENTS[name] ?? '';
+      await this.ensureDirectory(uri);
+      await vscode.workspace.fs.writeFile(uri, Buffer.from(payload, 'utf8'));
+      created.push(relativePath);
+    }
+
+    const agentsUri = await this.findAgentsFile(folder);
+    if (!agentsUri) {
+      const target = vscode.Uri.joinPath(folder.uri, AGENTS_FILE_CANDIDATES[0]);
+      await this.ensureDirectory(target);
+      await vscode.workspace.fs.writeFile(target, Buffer.from(AGENTS_TEMPLATE, 'utf8'));
+      created.push(AGENTS_FILE_CANDIDATES[0]);
+    }
+
+    return { created, warnings };
+  }
+
+  private async refreshHealth(): Promise<void> {
+    if (!this.diagnostics) {
+      return;
+    }
+    const folder = getPrimaryWorkspaceFolder();
+    if (!folder) {
+      this.diagnostics.clear();
+      if (this.treeView) {
+        this.treeView.badge = undefined;
       }
       return;
     }
 
-    if (!(await fileExists(legacyUri))) {
-      return;
+    const settings = getExtensionSettings();
+    const missing = await this.getMissingRequiredFiles(folder, settings);
+    const corrupt = await this.getCorruptJsonFiles(folder, settings);
+    const legacy = await this.getLegacyMetadataFiles(folder, settings);
+    this.updateDiagnostics(folder, missing, corrupt, legacy);
+    if (this.treeView) {
+      const issues = [
+        ...(missing.length ? [`Missing Harbormaster files:\n- ${missing.join('\n- ')}`] : []),
+        ...(corrupt.length ? [`Corrupt JSON:\n- ${corrupt.join('\n- ')}`] : []),
+        ...(legacy.length ? [`Legacy Harbormaster metadata:\n- ${legacy.join('\n- ')}`] : []),
+      ];
+      this.treeView.badge =
+        issues.length > 0
+          ? {
+              value: missing.length + corrupt.length + legacy.length,
+              tooltip: issues.join('\n'),
+            }
+          : undefined;
+    }
+  }
+
+  private async getMissingRequiredFiles(
+    folder: vscode.WorkspaceFolder,
+    settings: ExtensionSettings
+  ): Promise<string[]> {
+    const missing: string[] = [];
+    const requiredPaths = [
+      settings.configFile,
+      settings.tagsFile,
+      ...REQUIRED_CONTEXT_FILES.map((name) => `${DEFAULT_CONTEXT_DIR}/${name}`),
+    ];
+
+    for (const relativePath of requiredPaths) {
+      const uri = vscode.Uri.joinPath(folder.uri, relativePath);
+      if (!(await fileExists(uri))) {
+        missing.push(relativePath);
+      }
     }
 
-    const legacy = await this.readConfig(legacyUri);
-    legacy.tags = dedupeTags(Array.isArray(legacy.tags) ? legacy.tags : []);
-    await this.ensureDirectory(newUri);
-    await this.writeConfig(newUri, legacy, settings.configFile);
-    await vscode.workspace.fs.delete(legacyUri);
+    if (!(await this.findAgentsFile(folder))) {
+      missing.push('AGENTS.md or agents.md');
+    }
+
+    return missing;
+  }
+
+  private async getCorruptJsonFiles(
+    folder: vscode.WorkspaceFolder,
+    settings: ExtensionSettings
+  ): Promise<string[]> {
+    const corrupt: string[] = [];
+    const candidates = [settings.configFile, settings.tagsFile];
+    for (const relativePath of candidates) {
+      const uri = vscode.Uri.joinPath(folder.uri, relativePath);
+      if (!(await fileExists(uri))) {
+        continue;
+      }
+      if (await this.isJsonCorrupt(uri)) {
+        corrupt.push(relativePath);
+      }
+    }
+    return corrupt;
+  }
+
+  private async getLegacyMetadataFiles(
+    folder: vscode.WorkspaceFolder,
+    settings: ExtensionSettings
+  ): Promise<string[]> {
+    if (settings.configFile !== DEFAULT_CONFIG_FILE || settings.tagsFile !== DEFAULT_TAGS_FILE) {
+      return [];
+    }
+    const legacyPaths = [
+      `${LEGACY_META_DIR}/project.json`,
+      `${LEGACY_META_DIR}/tags.json`,
+      LEGACY_CONFIG_FILE,
+    ];
+    const found: string[] = [];
+    for (const relativePath of legacyPaths) {
+      const uri = vscode.Uri.joinPath(folder.uri, relativePath);
+      if (await fileExists(uri)) {
+        found.push(relativePath);
+      }
+    }
+    return found;
+  }
+
+  private async isJsonCorrupt(uri: vscode.Uri): Promise<boolean> {
+    try {
+      const content = await vscode.workspace.fs.readFile(uri);
+      JSON.parse(Buffer.from(content).toString('utf8'));
+      return false;
+    } catch {
+      return true;
+    }
+  }
+
+  private updateDiagnostics(folder: vscode.WorkspaceFolder, missing: string[], corrupt: string[], legacy: string[]): void {
+    if (!this.diagnostics) {
+      return;
+    }
+    this.diagnostics.clear();
+    for (const relativePath of missing) {
+      const uri =
+        relativePath === 'AGENTS.md or agents.md'
+          ? vscode.Uri.joinPath(folder.uri, AGENTS_FILE_CANDIDATES[0])
+          : vscode.Uri.joinPath(folder.uri, relativePath);
+      const diagnostic = new vscode.Diagnostic(
+        new vscode.Range(0, 0, 0, 1),
+        `Missing Harbormaster file: ${relativePath}`,
+        vscode.DiagnosticSeverity.Warning
+      );
+      this.diagnostics.set(uri, [diagnostic]);
+    }
+    for (const relativePath of corrupt) {
+      const uri = vscode.Uri.joinPath(folder.uri, relativePath);
+      const diagnostic = new vscode.Diagnostic(
+        new vscode.Range(0, 0, 0, 1),
+        `Harbormaster file is not valid JSON: ${relativePath}`,
+        vscode.DiagnosticSeverity.Warning
+      );
+      this.diagnostics.set(uri, [diagnostic]);
+    }
+    for (const relativePath of legacy) {
+      const uri = vscode.Uri.joinPath(folder.uri, relativePath);
+      const diagnostic = new vscode.Diagnostic(
+        new vscode.Range(0, 0, 0, 1),
+        `Legacy Harbormaster metadata detected: ${relativePath}. Run Rebuild project state to migrate.`,
+        vscode.DiagnosticSeverity.Warning
+      );
+      this.diagnostics.set(uri, [diagnostic]);
+    }
+  }
+
+  private async copyFileIfMissing(sourceUri: vscode.Uri, targetUri: vscode.Uri): Promise<boolean> {
+    if (await fileExists(targetUri)) {
+      return false;
+    }
+    const content = await vscode.workspace.fs.readFile(sourceUri);
+    await this.ensureDirectory(targetUri);
+    await vscode.workspace.fs.writeFile(targetUri, content);
+    return true;
+  }
+
+  private async copyDirectoryContentsIfMissing(sourceDir: vscode.Uri, targetDir: vscode.Uri): Promise<void> {
+    if (!(await this.directoryExists(sourceDir))) {
+      return;
+    }
+    await vscode.workspace.fs.createDirectory(targetDir);
+    const entries = await vscode.workspace.fs.readDirectory(sourceDir);
+    for (const [name, type] of entries) {
+      const sourceUri = vscode.Uri.joinPath(sourceDir, name);
+      const targetUri = vscode.Uri.joinPath(targetDir, name);
+      if (type === vscode.FileType.Directory) {
+        await this.copyDirectoryContentsIfMissing(sourceUri, targetUri);
+        continue;
+      }
+      await this.copyFileIfMissing(sourceUri, targetUri);
+    }
+  }
+
+  private async directoryExists(uri: vscode.Uri): Promise<boolean> {
+    try {
+      const stat = await vscode.workspace.fs.stat(uri);
+      return stat.type === vscode.FileType.Directory;
+    } catch {
+      return false;
+    }
   }
 
   private async ensureTagsFile(folder: vscode.WorkspaceFolder, settings: ExtensionSettings): Promise<void> {
@@ -469,8 +1159,12 @@ class ProjectTracker implements vscode.Disposable {
     await this.writeTagsFile(folder, settings, []);
   }
 
-  private async readTagsFile(folder: vscode.WorkspaceFolder, settings: ExtensionSettings): Promise<string[]> {
-    const tagsUri = vscode.Uri.joinPath(folder.uri, settings.tagsFile);
+  private async readTagsFile(
+    folder: vscode.WorkspaceFolder,
+    settings: ExtensionSettings,
+    overrideUri?: vscode.Uri
+  ): Promise<string[]> {
+    const tagsUri = overrideUri ?? vscode.Uri.joinPath(folder.uri, settings.tagsFile);
     try {
       const content = await vscode.workspace.fs.readFile(tagsUri);
       const parsed = JSON.parse(Buffer.from(content).toString('utf8')) as TagConfig;
@@ -480,7 +1174,7 @@ class ProjectTracker implements vscode.Disposable {
     } catch (error) {
       const code = (error as NodeJS.ErrnoException).code;
       if (code && code !== 'ENOENT') {
-        console.warn(`Harbormaster: unable to read tags file ${settings.tagsFile}:`, error);
+        console.warn(`Harbormaster: unable to read tags file ${tagsUri.fsPath}:`, error);
       }
     }
     return [];
@@ -517,7 +1211,7 @@ class ProjectTracker implements vscode.Disposable {
       return JSON.parse(Buffer.from(content).toString('utf8'));
     } catch (error) {
       const code = (error as NodeJS.ErrnoException).code;
-      if (code && code !== 'ENOENT') {
+      if (code && code !== 'ENOENT' && code !== 'EntryNotFound') {
         console.warn(`Harbormaster: unable to read file ${uri.fsPath}:`, error);
       }
     }
@@ -564,6 +1258,10 @@ class ProjectTracker implements vscode.Disposable {
       new vscode.RelativePattern(folder, settings.configFile),
       new vscode.RelativePattern(folder, settings.tagsFile),
       new vscode.RelativePattern(folder, LEGACY_CONFIG_FILE),
+      new vscode.RelativePattern(folder, `${LEGACY_META_DIR}/project.json`),
+      new vscode.RelativePattern(folder, `${LEGACY_META_DIR}/tags.json`),
+      ...REQUIRED_CONTEXT_FILES.map((name) => new vscode.RelativePattern(folder, `${DEFAULT_CONTEXT_DIR}/${name}`)),
+      ...AGENTS_FILE_CANDIDATES.map((name) => new vscode.RelativePattern(folder, name)),
     ];
 
     for (const pattern of patterns) {
@@ -581,12 +1279,17 @@ class ProjectTracker implements vscode.Disposable {
         watcher.onDidChange(() => {
           syncCatalog();
           this.onDidChangeEmitter.fire();
+          void this.refreshHealth();
         }),
         watcher.onDidCreate(() => {
           syncCatalog();
           this.onDidChangeEmitter.fire();
+          void this.refreshHealth();
         }),
-        watcher.onDidDelete(() => this.onDidChangeEmitter.fire())
+        watcher.onDidDelete(() => {
+          this.onDidChangeEmitter.fire();
+          void this.refreshHealth();
+        })
       );
     }
   }
@@ -612,6 +1315,7 @@ class ProjectTracker implements vscode.Disposable {
       const content = await vscode.workspace.fs.readFile(tagsUri);
       await this.ensureDirectory(backupUri);
       await vscode.workspace.fs.writeFile(backupUri, content);
+      await this.cleanupOldTagBackups(folder, settings, backupName, 1);
     } catch (error) {
       console.warn(`Harbormaster: unable to create tags backup ${backupName}:`, error);
     }
@@ -702,6 +1406,39 @@ class ProjectTracker implements vscode.Disposable {
     await this.writeCatalog(merged, catalogUri);
     await vscode.workspace.fs.delete(legacyCatalogUri);
   }
+
+  private async cleanupOldTagBackups(
+    folder: vscode.WorkspaceFolder,
+    settings: ExtensionSettings,
+    newestBackupName: string,
+    keepCount = 1
+  ): Promise<void> {
+    try {
+      const tagsUri = vscode.Uri.joinPath(folder.uri, settings.tagsFile);
+      const segments = tagsUri.path.split('/');
+      const fileName = segments.pop();
+      const dirPath = segments.join('/') || '/';
+      const dirUri = tagsUri.with({ path: dirPath });
+      if (!fileName) {
+        return;
+      }
+
+      const entries = await vscode.workspace.fs.readDirectory(dirUri);
+      const backupPrefix = `${fileName}.bak-`;
+      const backups = entries
+        .filter(([name, type]) => type === vscode.FileType.File && name.startsWith(backupPrefix))
+        .map(([name]) => name)
+        .sort((a, b) => b.localeCompare(a)); // newest first by date string
+
+      const toDelete = backups.filter((name) => name !== newestBackupName).slice(keepCount);
+      for (const name of toDelete) {
+        const target = vscode.Uri.joinPath(dirUri, name);
+        await vscode.workspace.fs.delete(target);
+      }
+    } catch (error) {
+      console.warn('Harbormaster: unable to clean old tag backups', error);
+    }
+  }
 }
 
 class ActionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
@@ -758,6 +1495,7 @@ class ActionTreeProvider implements vscode.TreeDataProvider<TreeNode> {
         ? new ActionTreeItem('Open project config', 'projectWindowTitle.openConfig', 'go-to-file')
         : new ActionTreeItem('Create project config', 'projectWindowTitle.createConfig', 'file-add'),
       new ActionTreeItem('Refresh window title', 'projectWindowTitle.refresh', 'refresh'),
+      new ActionTreeItem('Rebuild project state', 'projectWindowTitle.rebuildState', 'tools'),
     ];
     if (!inCatalog && folder) {
       projectItems.push(new ActionTreeItem('Add current project to catalog', 'projectWindowTitle.addProjectToCatalog', 'add'));
@@ -848,13 +1586,17 @@ export function activate(context: vscode.ExtensionContext): void {
   const actionsProvider = new ActionTreeProvider(tracker, version, isDevToolsEnabled(context));
   const treeView = vscode.window.createTreeView('harbormasterActions', { treeDataProvider: actionsProvider });
   treeView.description = actionsProvider.getDescription();
+  const diagnostics = vscode.languages.createDiagnosticCollection('Harbormaster');
+  tracker.setHealthIndicators(treeView, diagnostics);
   context.subscriptions.push(
     controller,
     tracker,
+    diagnostics,
     vscode.commands.registerCommand('projectWindowTitle.createConfig', () => createProjectConfig()),
     vscode.commands.registerCommand('projectWindowTitle.openConfig', () => openProjectConfig()),
     vscode.commands.registerCommand('projectWindowTitle.showMenu', () => showMenu()),
     vscode.commands.registerCommand('projectWindowTitle.refresh', () => controller.refresh()),
+    vscode.commands.registerCommand('projectWindowTitle.rebuildState', () => tracker.rebuildHarbormasterState()),
     vscode.commands.registerCommand('projectWindowTitle.addGlobalTag', () => tracker.addGlobalTag()),
     vscode.commands.registerCommand('projectWindowTitle.removeGlobalTag', () => tracker.removeGlobalTag()),
     vscode.commands.registerCommand('projectWindowTitle.assignTag', () => tracker.assignTagToProject()),
@@ -1028,6 +1770,9 @@ async function createProjectConfig(): Promise<void> {
   await ensureDirectoryForFile(targetUri);
   const content = Buffer.from(JSON.stringify(payload, null, 2) + '\n', 'utf8');
   await vscode.workspace.fs.writeFile(targetUri, content);
+  if (trackerSingleton) {
+    await trackerSingleton.scaffoldProjectState({ silent: true });
+  }
   void vscode.window.showInformationMessage(`Harbormaster: wrote ${settings.configFile}.`);
 }
 
@@ -1078,7 +1823,7 @@ async function readProjectInfo(folder: vscode.WorkspaceFolder, settings: Extensi
     return { name: projectName, version: projectVersion, tags };
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
-    if (code && code !== 'ENOENT') {
+    if (code && code !== 'ENOENT' && code !== 'EntryNotFound') {
       console.warn(`Harbormaster: unable to read config file ${settings.configFile}:`, error);
     }
   }
@@ -1141,8 +1886,9 @@ async function showMenu(): Promise<void> {
   }
 
   const items: vscode.QuickPickItem[] = [
-    { label: 'Create project config', description: 'Prompt for name/version and write .harbormaster/project.json' },
-    { label: 'Open project config', description: 'Open or create the configured .harbormaster/project.json' },
+    { label: 'Create project config', description: 'Prompt for name/version and write .harbormaster/.meta/project.json' },
+    { label: 'Open project config', description: 'Open or create the configured .harbormaster/.meta/project.json' },
+    { label: 'Rebuild project state', description: 'Create missing Harbormaster files and migrate legacy metadata' },
     { label: 'Add project to catalog', description: 'Save current project entry to the catalog' },
     { label: 'Open project from catalog', description: 'Pick and open a saved Harbormaster project' },
     { label: 'Add global tag', description: 'Create a tag available to all projects' },
@@ -1167,6 +1913,11 @@ async function showMenu(): Promise<void> {
 
   if (selection.label === 'Open project config') {
     await openProjectConfig();
+    return;
+  }
+
+  if (selection.label === 'Rebuild project state') {
+    await trackerSingleton.rebuildHarbormasterState();
     return;
   }
 

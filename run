@@ -4,7 +4,7 @@ set -euo pipefail
 COMMAND="${1:-help}"
 SUBCOMMAND="${2:-}"
 MODE="${3:-}"
-CONFIG_FILE=".harbormaster/project.json"
+CONFIG_FILE=".harbormaster/.meta/project.json"
 
 err() { echo "Error: $*" >&2; exit 1; }
 
@@ -16,16 +16,21 @@ fi
 
 resolve_config_path() {
   local primary="$CONFIG_FILE"
+  local legacy_meta=".harbormaster/project.json"
   local legacy=".project.json"
   if [[ -f "$primary" ]]; then
     echo "$primary"
     return
   fi
-  if [[ "$primary" == ".harbormaster/project.json" && -f "$legacy" ]]; then
+  if [[ -f "$legacy_meta" ]]; then
+    echo "$legacy_meta"
+    return
+  fi
+  if [[ -f "$legacy" ]]; then
     echo "$legacy"
     return
   fi
-  err "Could not find project config at $primary (or $legacy)."
+  err "Could not find project config at $primary (or $legacy_meta, $legacy)."
 }
 
 resolve_mode() {
@@ -218,8 +223,8 @@ cleanup_builds() {
 
   local today
   today="$(date +%Y-%m-%d)"
-  local dest_dir="${builds_dir}/Harbormaster_Builds_${today}"
-  mkdir -p "$dest_dir"
+  local root_dir="${builds_dir}/Harbormaster_Builds_${today}"
+  mkdir -p "$root_dir"
 
   for src in "${files[@]}"; do
     if [[ -d "$src" ]]; then
@@ -227,6 +232,14 @@ cleanup_builds() {
     fi
     local filename
     filename="$(basename "$src")"
+    local mode_subdir="unknown"
+    if [[ "$filename" =~ -dev\.vsix$ ]]; then
+      mode_subdir="dev"
+    elif [[ "$filename" =~ -prod\.vsix$ ]]; then
+      mode_subdir="prod"
+    fi
+    local dest_dir="${root_dir}/${mode_subdir}"
+    mkdir -p "$dest_dir"
     local dest="${dest_dir}/${filename}"
     if [[ -f "$dest" ]]; then
       echo "File exists: ${dest}"
