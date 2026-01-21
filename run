@@ -8,8 +8,8 @@ CONFIG_FILE=".harbormaster/.meta/project.json"
 
 err() { echo "Error: $*" >&2; exit 1; }
 
-# Normalize args: commands without subcommands treat $2 as mode if $3 not provided.
-if [[ "$COMMAND" != "cleanup" && -n "$SUBCOMMAND" && -z "$MODE" ]]; then
+# Normalize args: mode-bearing commands treat $2 as mode if $3 not provided.
+if [[ ( "$COMMAND" == "compile" || "$COMMAND" == "watch" || "$COMMAND" == "build" ) && -n "$SUBCOMMAND" && -z "$MODE" ]]; then
   MODE="$SUBCOMMAND"
   SUBCOMMAND=""
 fi
@@ -72,9 +72,9 @@ function coerceString(value) {
 function deriveVersion(cfg) {
   const major = coerceInt(cfg.version_major, 0);
   const minor = coerceInt(cfg.version_minor, 0);
+  const patch = coerceInt(cfg.version_patch, 0);
   const prerelease = coerceString(cfg.version_prerelease);
   const explicit = coerceString(cfg.project_version);
-  const patch = new Date().getFullYear() % 100;
   if (/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-.]+)?(?:\+[0-9A-Za-z-.]+)?$/.test(explicit)) {
     return explicit;
   }
@@ -93,6 +93,25 @@ try {
 } catch (error) {
   process.exit(1);
 }
+NODE
+}
+
+sync_package_version() {
+  local version
+  version="$(get_project_version)" || err "Could not derive project version"
+  VERSION="$version" node <<'NODE'
+const fs = require('fs');
+const pkgPath = 'package.json';
+const version = process.env.VERSION;
+const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+if (pkg.version !== version) {
+  pkg.version = version;
+  fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
+  console.log(`Updated package.json version to ${version}`);
+} else {
+  console.log(`package.json version already ${version}`);
+}
+console.log(`Using extension name: ${pkg.name}`);
 NODE
 }
 
@@ -117,9 +136,9 @@ function coerceString(value) {
 function deriveVersion(cfg) {
   const major = coerceInt(cfg.version_major, 0);
   const minor = coerceInt(cfg.version_minor, 0);
+  const patch = coerceInt(cfg.version_patch, 0);
   const prerelease = coerceString(cfg.version_prerelease);
   const explicit = coerceString(cfg.project_version);
-  const patch = new Date().getFullYear() % 100;
   if (/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-.]+)?(?:\+[0-9A-Za-z-.]+)?$/.test(explicit)) {
     return explicit;
   }
@@ -131,9 +150,11 @@ try {
   const raw = fs.readFileSync(path, 'utf8');
   const cfg = JSON.parse(raw);
   cfg.version_minor = coerceInt(cfg.version_minor, 0) + 1;
+  cfg.version_patch = 0;
+  cfg.project_version = '';
   const nextVersion = deriveVersion(cfg);
   fs.writeFileSync(path, JSON.stringify(cfg, null, 2) + '\n');
-  console.log(`Bumped version_minor to ${cfg.version_minor} (next version ${nextVersion})`);
+  console.log(`Bumped version_minor to ${cfg.version_minor}, reset patch to 0 (next version ${nextVersion})`);
 } catch (error) {
   console.error('Failed to bump version_minor:', error.message || error);
   process.exit(1);
@@ -162,9 +183,9 @@ function coerceString(value) {
 function deriveVersion(cfg) {
   const major = coerceInt(cfg.version_major, 0);
   const minor = coerceInt(cfg.version_minor, 0);
+  const patch = coerceInt(cfg.version_patch, 0);
   const prerelease = coerceString(cfg.version_prerelease);
   const explicit = coerceString(cfg.project_version);
-  const patch = new Date().getFullYear() % 100;
   if (/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-.]+)?(?:\+[0-9A-Za-z-.]+)?$/.test(explicit)) {
     return explicit;
   }
@@ -177,9 +198,11 @@ try {
   const cfg = JSON.parse(raw);
   cfg.version_major = coerceInt(cfg.version_major, 0) + 1;
   cfg.version_minor = 0;
+  cfg.version_patch = 0;
+  cfg.project_version = '';
   const nextVersion = deriveVersion(cfg);
   fs.writeFileSync(path, JSON.stringify(cfg, null, 2) + '\n');
-  console.log(`Bumped version_major to ${cfg.version_major}, reset version_minor to 0 (next version ${nextVersion})`);
+  console.log(`Bumped version_major to ${cfg.version_major}, reset minor/patch to 0 (next version ${nextVersion})`);
 } catch (error) {
   console.error('Failed to bump version_major:', error.message || error);
   process.exit(1);
@@ -187,22 +210,124 @@ try {
 NODE
 }
 
-sync_package_version() {
-  local version
-  version="$(get_project_version)" || err "Could not derive project version"
-  VERSION="$version" node <<'NODE'
+bump_project_patch() {
+  local config_path
+  config_path="$(resolve_config_path)"
+  CONFIG_FILE="$config_path" node <<'NODE'
 const fs = require('fs');
-const pkgPath = 'package.json';
-const version = process.env.VERSION;
-const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
-if (pkg.version !== version) {
-  pkg.version = version;
-  fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
-  console.log(`Updated package.json version to ${version}`);
-} else {
-  console.log(`package.json version already ${version}`);
+const path = process.env.CONFIG_FILE;
+
+function coerceInt(value, fallback) {
+  if (Number.isInteger(value) && value >= 0) return value;
+  if (typeof value === 'string' && /^[0-9]+$/.test(value)) return Number.parseInt(value, 10);
+  return fallback;
 }
-console.log(`Using extension name: ${pkg.name}`);
+
+function coerceString(value) {
+  if (typeof value !== 'string') return '';
+  return value.trim();
+}
+
+function deriveVersion(cfg) {
+  const major = coerceInt(cfg.version_major, 0);
+  const minor = coerceInt(cfg.version_minor, 0);
+  const patch = coerceInt(cfg.version_patch, 0);
+  const prerelease = coerceString(cfg.version_prerelease);
+  const explicit = coerceString(cfg.project_version);
+  if (/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-.]+)?(?:\+[0-9A-Za-z-.]+)?$/.test(explicit)) {
+    return explicit;
+  }
+  const base = `${major}.${minor}.${patch}`;
+  return prerelease ? `${base}-${prerelease}` : base;
+}
+
+try {
+  const raw = fs.readFileSync(path, 'utf8');
+  const cfg = JSON.parse(raw);
+  cfg.version_patch = coerceInt(cfg.version_patch, 0) + 1;
+  cfg.project_version = '';
+  const nextVersion = deriveVersion(cfg);
+  fs.writeFileSync(path, JSON.stringify(cfg, null, 2) + '\n');
+  console.log(`Bumped version_patch to ${cfg.version_patch} (next version ${nextVersion})`);
+} catch (error) {
+  console.error('Failed to bump version_patch:', error.message || error);
+  process.exit(1);
+}
+NODE
+}
+
+version_show() {
+  get_project_version
+}
+
+version_set() {
+  local next="$1"
+  if [[ -z "$next" ]]; then
+    err "Version required. Example: ./run version set 1.2.3"
+  fi
+  local config_path
+  config_path="$(resolve_config_path)"
+  CONFIG_FILE="$config_path" VERSION="$next" node <<'NODE'
+const fs = require('fs');
+const path = process.env.CONFIG_FILE;
+const version = process.env.VERSION;
+const semver = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-.]+)?(?:\+[0-9A-Za-z-.]+)?$/;
+if (!semver.test(version)) {
+  console.error(`Invalid SemVer: ${version}`);
+  process.exit(1);
+}
+try {
+  const raw = fs.readFileSync(path, 'utf8');
+  const cfg = JSON.parse(raw);
+  cfg.project_version = version;
+  fs.writeFileSync(path, JSON.stringify(cfg, null, 2) + '\n');
+  console.log(`Set project_version to ${version}`);
+} catch (error) {
+  console.error('Failed to set project_version:', error.message || error);
+  process.exit(1);
+}
+NODE
+}
+
+version_bump() {
+  local part="$1"
+  case "$part" in
+    major)
+      bump_project_major
+      ;;
+    minor)
+      bump_project_minor
+      ;;
+    patch)
+      bump_project_patch
+      ;;
+    *)
+      err "Unknown bump target '$part'. Use major, minor, or patch."
+      ;;
+  esac
+}
+
+version_prerelease() {
+  local tag="${1:-}"
+  local config_path
+  config_path="$(resolve_config_path)"
+  CONFIG_FILE="$config_path" TAG="$tag" node <<'NODE'
+const fs = require('fs');
+const path = process.env.CONFIG_FILE;
+const tag = (process.env.TAG || '').trim();
+try {
+  const raw = fs.readFileSync(path, 'utf8');
+  const cfg = JSON.parse(raw);
+  cfg.version_prerelease = tag === 'clear' ? '' : tag;
+  if (cfg.project_version) {
+    cfg.project_version = '';
+  }
+  fs.writeFileSync(path, JSON.stringify(cfg, null, 2) + '\n');
+  console.log(tag === 'clear' ? 'Cleared version_prerelease.' : `Set version_prerelease to ${tag || '(empty)'}.`);
+} catch (error) {
+  console.error('Failed to update version_prerelease:', error.message || error);
+  process.exit(1);
+}
 NODE
 }
 
@@ -290,11 +415,6 @@ cmd_watch() {
 cmd_build() {
   local mode
   mode="$(resolve_mode "")"
-  if [[ "$mode" == "prod" ]]; then
-    bump_project_minor
-  else
-    echo "Skipping version bump in dev mode."
-  fi
   sync_package_version
   local version pkgName target choice
   version="$(get_project_version)" || err "project_version not found"
@@ -361,18 +481,50 @@ case "$COMMAND" in
   build)
     cmd_build
     ;;
+  version)
+    case "$SUBCOMMAND" in
+      show)
+        version_show
+        ;;
+      set)
+        version_set "$MODE"
+        ;;
+      bump)
+        version_bump "$MODE"
+        ;;
+      prerelease)
+        version_prerelease "$MODE"
+        ;;
+      ""|-h|--help|help)
+        cat <<'EOH'
+Usage: ./run version <subcommand>
+
+Subcommands:
+  show                 Print the derived version.
+  set <x.y.z[-pre]>    Set project_version explicitly.
+  bump <major|minor|patch>
+                       Bump numeric fields and clear project_version.
+  prerelease <tag|clear>
+                       Set or clear version_prerelease (clears project_version).
+EOH
+        ;;
+      *)
+        err "Unknown version subcommand: $SUBCOMMAND"
+        ;;
+    esac
+    ;;
   cleanup)
     case "$SUBCOMMAND" in
       builds)
         cleanup_builds
         ;;
       ""|-h|--help|help)
-        cat <<'EOF'
+        cat <<'EOH'
 Usage: ./run cleanup <subcommand>
 
 Subcommands:
   builds   Move all files in ./builds into ./builds/Harbormaster_Builds_<YYYY-MM-DD>/, prompting on conflicts (default keep both).
-EOF
+EOH
         ;;
       *)
         err "Unknown cleanup subcommand: $SUBCOMMAND"
@@ -383,17 +535,18 @@ EOF
     bump_project_major
     ;;
   -h|--help|help)
-    cat <<'EOF'
+    cat <<'EOH'
 Usage: ./run <command>
 
 Commands:
-  compile [dev|prod]   Derive version from .project.json and run a single TypeScript build (no VSIX). Defaults to dev mode.
+  compile [dev|prod]   Derive version from project config and run a single TypeScript build (no VSIX). Defaults to dev mode.
   watch [dev|prod]     Derive version and run tsc in watch mode. Defaults to dev mode.
-  build <dev|prod>     Derive version, build, and package into ./builds/*.vsix (prompts on conflicts). Requires explicit mode. Prod auto-bumps version_minor; dev skips bump. Filename includes mode.
+  build <dev|prod>     Derive version, build, and package into ./builds/*.vsix (prompts on conflicts). Requires explicit mode.
+  version <subcmd>     Manage project version fields (see `./run version help`).
   cleanup <subcmd>     Run cleanup helpers (e.g., `cleanup builds` to archive build artifacts).
-  major_update         Bump version_major and reset version_minor to 0 (writes .project.json)
-  help      Show this help
-EOF
+  major_update         Bump version_major and reset version_minor to 0 (writes project config).
+  help                 Show this help.
+EOH
     ;;
   *)
     echo "Unknown command: $COMMAND"

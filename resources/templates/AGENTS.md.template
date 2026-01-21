@@ -1,0 +1,7 @@
+# AGENTS
+
+Move most directive content into `.harbormaster/.context/DIRECTIVES.md`,
+then remove those moved directives and this notice block from this file.
+Keep this file as the entrypoint that references DIRECTIVES.md.
+
+See `.harbormaster/.context/DIRECTIVES.md` for most directives.

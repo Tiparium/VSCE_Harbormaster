@@ -1,0 +1,83 @@
+## Context system
+
+**Location:** `.harbormaster/.context/`  
+**Purpose:** Keep a compact, structured memory for project state, decisions, and operational rules.
+
+### `PROJECT_STATE.md` (small, always read)
+**Purpose:** Current working context that should be loaded at the start of every session/task.  
+**Agent behavior:** Read before doing any work; update only when state changes.  
+**User behavior:** Keep it short; update goals/plan/status as they evolve.
+
+**Hard rules:**
+* Keep this file **short** (aim ~10-40 lines). It is a snapshot, not a diary.
+* The agent must **read this file before doing any work**.
+* The agent should **update this file only when the project state changes** (goal/plan/constraints/etc.), not every message.
+
+**Suggested sections (keep terse):**
+* **Goal (current):** what we are trying to accomplish right now
+* **Constraints:** must-follow rules, naming conventions, environment notes
+* **Current plan:** 3-7 bullet steps
+* **Status:** what is done / what is next
+* **Open questions:** unknowns blocking progress
+* **Assumptions (active):** key assumptions currently being relied upon (bullets)
+
+### `DECISIONS_LOG.md` (append-only)
+**Purpose:** Durable record of important decisions so the project does not "forget why."  
+**Agent behavior:** Append entries only for notable decisions.  
+**User behavior:** Add/confirm decision entries when the project direction changes.
+
+**Rules:**
+* Append entries only when something is decided/changed that would matter later.
+* Each entry should be short and include:
+	* **Date**
+	* **Decision**
+	* **Reason**
+	* **Impact / files touched** (paths if relevant)
+
+**Format example:**
+* `2025-12-15 — Decision: Use dual-file memory. Reason: state stays small; decisions stay traceable. Impact: added PROJECT_STATE.md and DECISIONS_LOG.md.`
+
+### `DOCUMENTS.md`
+**Purpose:** Command reference, runbook details, and stable usage notes.  
+**Agent behavior:** Add entries only for true runbook-level changes.  
+**User behavior:** Treat as reference docs, not a command log.
+
+### `PERSONALITY.md`
+**Purpose:** Tone and response style for the assistant.  
+**Agent behavior:** Follow it unless it conflicts with higher-priority instructions.  
+**User behavior:** Keep it short and direct, but ask questions where something is unclear.
+
+### `SHELF.md`
+**Purpose:** Task parking lot and priority staging.  
+**Agent behavior:** Check occasionally and surface relevant items.  
+**User behavior:** Primary project tracking interface. This is how the user tracks objectives, completed milestones, etc.
+
+---
+
+## Required behavior: Assumptions must be surfaced
+
+Whenever the agent takes an action **because of an assumption**, the agent must explicitly state it in its reply, e.g.:
+* **Assumption used:** "We are using Node 20 because the repo targets it."
+* **If unsure:** "This is an assumption—please confirm or correct."
+
+And if the assumption is new or changed, it must also be added/updated in:
+* `PROJECT_STATE.md` → **Assumptions (active)**
+* Any new CLI commands must be documented in `./run help`.
+
+## Missing files
+If a file is in `.harbormaster/.context` that is not mentioned above, query the user as to its purpose.
+
+---
+
+## Operating loop
+1. **Start of session/task:** read `PROJECT_STATE.md`, `PERSONALITY.md`, and `DOCUMENTS.md` (once per session unless you need to edit it or are explicitly told to reread).
+2. Do the work.
+3. If state changed: update `PROJECT_STATE.md` (keep it compact).
+4. If a major notable decision was made (architecture/behavioral choices, not routine maintenance): append to `DECISIONS_LOG.md`.
+5. In replies: always surface any **Assumption used** that influenced the work.
+
+## Instructions
+* Run a Self Check: reread all context files and summarize differences from working memory.
+
+## User directives
+* 2026-01-20 — Keep directives grouped by section with clear headings and consistent structure.

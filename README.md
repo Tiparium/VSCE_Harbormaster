@@ -27,7 +27,18 @@ Config containing the project identity, version metadata, and project tags (safe
   "project_version": "",
   "version_major": 1,
   "version_minor": 2,
+  "version_patch": 0,
   "version_prerelease": "alpha",
+  "window_accent": "#0A84FF",
+  "window_accent_sections": {
+    "highlights": "#1B6AA0"
+  },
+  "window_accent_groups": {
+    "tabs": "#0A84FF"
+  },
+  "window_accent_overrides": {
+    "tab.activeBorderTop": "#0A84FF"
+  },
   "version_scheme_note": "version = <major>.<minor>.<YY>-<prerelease>; YY is last two digits of build year (computed automatically); prerelease is optional.",
   "tags": [
     "backend",
@@ -36,7 +47,12 @@ Config containing the project identity, version metadata, and project tags (safe
 }
 ```
 - `project_name` drives the workspace title. If missing, the title is prefixed with `[Headless] ` plus your normal template.
-- If `project_version` is a valid SemVer, it is used. Otherwise Harbormaster derives `major.minor.<YY>[-prerelease]` from the numeric fields. Set `projectWindowTitle.showVersion` to true to display it.
+- If `project_version` is a valid SemVer, it is used. Otherwise Harbormaster derives `major.minor.patch[-prerelease]` from the numeric fields. Set `projectWindowTitle.showVersion` to true to display it.
+- `window_accent` (optional) sets the base accent color used by all zones (hex `#RRGGBB` or `#RGB`).
+- `window_accent_sections` (optional) overrides the base accent for major sections (`window`, `highlights`, `other`).
+- `window_accent_groups` (optional) overrides the section accent per zone (keys: `titleBar`, `activityBar`, `tabs`, `notifications`, `statusBar`, `sidebar`, `panel`, `editor`, `lists`, `buttons`, `badges`).
+- `window_accent_overrides` (optional) sets per-color-key overrides (keys listed in the picker dropdowns).
+- `window_accent_history` (optional) stores the last 3 accent colors per zone for quick reverts in the picker UI.
 - `tags` is an array of tag IDs assigned to this project.
 
 ## Tags registry (`.harbormaster/.meta/tags.json`)
@@ -68,6 +84,8 @@ Global tag list available to all projects in the workspace:
 - Open project config (`projectWindowTitle.openConfig`)
 - Menu (`projectWindowTitle.showMenu`)
 - Refresh window title (`projectWindowTitle.refresh`)
+- Set window accent color (`projectWindowTitle.setWindowAccent`)
+- Reset window accent color (`projectWindowTitle.resetWindowAccent`)
 - Rebuild project state (`projectWindowTitle.rebuildState`)
 - Add global tag (`projectWindowTitle.addGlobalTag`)
 - Remove global tag (`projectWindowTitle.removeGlobalTag`)
@@ -84,6 +102,7 @@ Global tag list available to all projects in the workspace:
 - `projectWindowTitle.projectVersionKey` (default `project_version`)
 - `projectWindowTitle.projectVersionMajorKey` (default `version_major`)
 - `projectWindowTitle.projectVersionMinorKey` (default `version_minor`)
+- `projectWindowTitle.projectVersionPatchKey` (default `version_patch`)
 - `projectWindowTitle.projectVersionPrereleaseKey` (default `version_prerelease`)
 - `projectWindowTitle.showVersion` (default `false`)
 - `projectWindowTitle.versionFormat` (default `${projectName} (${projectVersion})`)
@@ -97,8 +116,11 @@ All settings are workspace-scoped; global/user settings are never modified.
 - Scripts (`./run`):
   - `./run compile [dev|prod]` — derive version, single TypeScript build (no VSIX). Default dev.
   - `./run watch [dev|prod]` — derive version, watch mode. Default dev.
-  - `./run build <dev|prod>` — derive version, package into `builds/<name>-<version>-<mode>.vsix` (prompts on conflicts). Prod bumps `version_minor`; dev skips bump.
-  - `./run major_update` — bump `version_major`, reset `version_minor` to 0.
+  - `./run build <dev|prod>` — derive version, build, and package into `builds/<name>-<version>-<mode>.vsix` (prompts on conflicts). No auto-bumps.
+  - `./run version show` — print the derived version.
+  - `./run version set <x.y.z[-pre]>` — set `project_version`.
+  - `./run version bump <major|minor|patch>` — bump numeric fields and clear `project_version`.
+  - `./run version prerelease <tag|clear>` — set or clear `version_prerelease`.
   - `./run help` — list commands.
 - Dev mode sets `HARBORMASTER_DEV_TOOLS=1`; prod sets it to `0`.
 
