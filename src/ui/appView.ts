@@ -17,7 +17,6 @@ type AppCommand =
   | 'projectWindowTitle.addProjectToCatalog'
   | 'projectWindowTitle.openProjectFromCatalog'
   | 'projectWindowTitle.showMenu'
-  | 'projectWindowTitle.setAccentPickerBreakpoint'
   | 'projectWindowTitle.createHarbormasterProject'
   | 'projectWindowTitle.openGlobalTags';
 
@@ -196,7 +195,6 @@ export class HarbormasterAppViewProvider implements vscode.WebviewViewProvider {
     const groupInherit = this.normalizeAccentGroupInherit(info?.windowAccentGroupsInherit);
     const overrides = this.normalizeAccentOverrides(info?.windowAccentOverrides);
     const groupHistory = this.normalizeAccentHistory(info?.windowAccentHistory);
-    const breakpoint = (settings as { accentPickerBreakpoint?: number }).accentPickerBreakpoint ?? 560;
     const highlightBoost =
       typeof info?.windowAccentHighlightBoost === 'number' ? info.windowAccentHighlightBoost : undefined;
     const themeCss = buildHarbormasterThemeCss(
@@ -215,7 +213,6 @@ export class HarbormasterAppViewProvider implements vscode.WebviewViewProvider {
       groupInherit,
       overrides,
       groupHistory,
-      breakpoint,
       this.accentSections,
       this.accentGroups,
       {
@@ -433,10 +430,7 @@ function getAppHtml(state: AppState): string {
     },
     {
       title: 'Utility',
-      actions: [
-        { label: 'Accent picker breakpoint', command: 'projectWindowTitle.setAccentPickerBreakpoint' },
-        { label: 'Command palette menu', command: 'projectWindowTitle.showMenu' },
-      ],
+      actions: [{ label: 'Command palette menu', command: 'projectWindowTitle.showMenu' }],
     },
   ];
 
@@ -587,6 +581,12 @@ function getAppHtml(state: AppState): string {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
         gap: 8px;
+      }
+      .grid button {
+        font-size: 0.85rem;
+        line-height: 1.2;
+        padding: 8px 10px;
+        white-space: normal;
       }
       .health {
         margin-top: 10px;

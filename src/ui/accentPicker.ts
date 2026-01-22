@@ -20,7 +20,6 @@ export function getAccentPickerHtml(
   groupInherit: Record<string, boolean>,
   overrides: Record<string, string>,
   groupHistory: Record<string, string[]>,
-  breakpoint: number,
   sections: AccentSectionDefinition[],
   groups: AccentGroupDefinition[],
   options: {
@@ -32,7 +31,6 @@ export function getAccentPickerHtml(
     highlightBoost?: number;
   } = {}
 ): string {
-  const safeBreakpoint = Number.isFinite(breakpoint) && breakpoint > 0 ? Math.round(breakpoint) : 560;
   const showBackButton = Boolean(options.showBackButton);
   const backLabel = options.backLabel ?? 'Back';
   const useThemeDefault = Boolean(options.useThemeDefault);
@@ -126,7 +124,7 @@ export function getAccentPickerHtml(
       }
       .row {
         display: grid;
-        grid-template-columns: 150px minmax(0, 1fr) minmax(0, 1fr);
+        grid-template-columns: 1fr;
         align-items: center;
         gap: 12px;
         margin-bottom: 10px;
@@ -277,7 +275,7 @@ export function getAccentPickerHtml(
       }
       .compact-row {
         display: grid;
-        grid-template-columns: 150px minmax(0, 1fr) minmax(0, 1fr);
+        grid-template-columns: 1fr;
         gap: 12px;
         align-items: center;
         margin-bottom: 10px;
@@ -285,41 +283,20 @@ export function getAccentPickerHtml(
       .compact-row .actions {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
-      @media (max-width: ${safeBreakpoint}px) {
-        .row {
-          grid-template-columns: 1fr;
-          align-items: start;
-        }
-        .compact-row {
-          grid-template-columns: 1fr;
-        }
-        .row > * {
-          width: 100%;
-          justify-self: stretch;
-        }
-        .controls {
-          grid-template-columns: 42px minmax(0, 1fr);
-        }
-        .controls.inherit-controls {
-          grid-template-columns: 42px auto minmax(0, 1fr);
-        }
-        input[type="text"],
-        select,
-        button {
-          width: 100%;
-        }
-        .toolbar-actions {
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-        }
-        .toolbar-presets {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-        .row .actions {
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-        }
-        .compact-row .actions {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
+      .row > * {
+        width: 100%;
+        justify-self: stretch;
+      }
+      .controls {
+        grid-template-columns: 42px minmax(0, 1fr);
+      }
+      .controls.inherit-controls {
+        grid-template-columns: 42px auto minmax(0, 1fr);
+      }
+      input[type="text"],
+      select,
+      button {
+        width: 100%;
       }
     </style>
   </head>

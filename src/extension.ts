@@ -2,7 +2,6 @@ import * as vscode from 'vscode';
 import * as os from 'os';
 import * as path from 'path';
 
-import { setAccentPickerBreakpoint } from './ui/accentPanels';
 import { HarbormasterAppViewProvider } from './ui/appView';
 import { StatusBarController } from './ui/statusBar';
 
@@ -62,7 +61,6 @@ const DEFAULT_NAMED_FORMAT = '${projectName}';
 const DEFAULT_VERSION_FORMAT = '${projectName} (${projectVersion})';
 const DEFAULT_SHOW_VERSION = false;
 const FALLBACK_TITLE_TEMPLATE = '${dirty}${activeEditorShort}${separator}${rootName}${separator}${appName}';
-const DEFAULT_ACCENT_PICKER_BREAKPOINT = 560;
 const DEFAULT_HIGHLIGHT_INHERIT_BOOST = 0.15;
 const DEFAULT_PROJECT_CREATE_FOLDER = path.join(os.homedir(), 'Documents');
 const ACCENT_SECTIONS = [
@@ -225,7 +223,6 @@ interface ExtensionSettings {
   versionFormat: string;
   headlessPrefix: string;
   namedFormat: string;
-  accentPickerBreakpoint: number;
   projectCreateDefaultFolder: string;
 }
 
@@ -2308,7 +2305,6 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('projectWindowTitle.addProjectToCatalog', () => tracker.addProjectToCatalog()),
     vscode.commands.registerCommand('projectWindowTitle.openProjectFromCatalog', () => tracker.openProjectFromCatalog()),
     vscode.commands.registerCommand('projectWindowTitle.openGlobalTags', () => openGlobalTagMenu()),
-    vscode.commands.registerCommand('projectWindowTitle.setAccentPickerBreakpoint', () => openAccentPickerBreakpoint()),
     vscode.commands.registerCommand('projectWindowTitle.createHarbormasterProject', () => createHarbormasterProject()),
     vscode.commands.registerCommand('projectWindowTitle.saveColorPreset', () => tracker.saveColorPreset()),
     vscode.commands.registerCommand('projectWindowTitle.applyColorPreset', () => tracker.applyColorPreset()),
@@ -2444,7 +2440,6 @@ function getExtensionSettings(): ExtensionSettings {
     versionFormat: config.get<string>('versionFormat', DEFAULT_VERSION_FORMAT),
     headlessPrefix: config.get<string>('headlessPrefix', DEFAULT_HEADLESS_PREFIX),
     namedFormat: config.get<string>('namedFormat', DEFAULT_NAMED_FORMAT),
-    accentPickerBreakpoint: config.get<number>('accentPickerBreakpoint', DEFAULT_ACCENT_PICKER_BREAKPOINT),
     projectCreateDefaultFolder: config.get<string>('projectCreateDefaultFolder', DEFAULT_PROJECT_CREATE_FOLDER),
   };
 }
@@ -2517,11 +2512,6 @@ async function openWindowAccentPicker(): Promise<void> {
 
 async function openGlobalTagMenu(): Promise<void> {
   void vscode.window.showInformationMessage('Harbormaster: Global tag menu coming soon.');
-}
-
-async function openAccentPickerBreakpoint(): Promise<void> {
-  const settings = getExtensionSettings();
-  await setAccentPickerBreakpoint(settings.accentPickerBreakpoint, DEFAULT_ACCENT_PICKER_BREAKPOINT);
 }
 
 async function createHarbormasterProject(): Promise<void> {

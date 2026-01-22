@@ -116,11 +116,6 @@
         "command": "projectWindowTitle.openGlobalTags",
         "title": "Harbormaster: Global tag menu",
         "category": "Harbormaster"
-      },
-      {
-        "command": "projectWindowTitle.setAccentPickerBreakpoint",
-        "title": "Harbormaster: Set accent picker breakpoint",
-        "category": "Harbormaster"
       }
     ],
     "configuration": {
@@ -190,11 +185,6 @@
           "type": "string",
           "default": "${projectName} (${projectVersion})",
           "description": "Template used when showVersion is true and a version is available."
-        },
-        "projectWindowTitle.accentPickerBreakpoint": {
-          "type": "number",
-          "default": 560,
-          "description": "Viewport width in pixels where the accent picker switches to its narrow layout."
         },
         "projectWindowTitle.projectCreateDefaultFolder": {
           "type": "string",
