@@ -845,7 +845,7 @@ class ProjectTracker implements vscode.Disposable {
     this.onDidChangeEmitter.fire();
   }
 
-  async setWindowAccentHighlightBoost(value: number | undefined): Promise<void> {
+  async setWindowAccentHighlightBoost(value: number | undefined, preview = false): Promise<void> {
     const folder = getPrimaryWorkspaceFolder();
     if (!folder) {
       void vscode.window.showErrorMessage('Harbormaster: No workspace folder open.');
@@ -856,13 +856,22 @@ class ProjectTracker implements vscode.Disposable {
     const configUri = vscode.Uri.joinPath(folder.uri, settings.configFile);
     const config = await this.readConfig(configUri);
     const normalized = normalizeAccentHighlightBoost(value);
-    if (typeof normalized === 'number') {
-      config[DEFAULT_WINDOW_ACCENT_HIGHLIGHT_BOOST_KEY] = normalized;
-    } else {
-      delete config[DEFAULT_WINDOW_ACCENT_HIGHLIGHT_BOOST_KEY];
+    if (!preview) {
+      if (typeof normalized === 'number') {
+        config[DEFAULT_WINDOW_ACCENT_HIGHLIGHT_BOOST_KEY] = normalized;
+      } else {
+        delete config[DEFAULT_WINDOW_ACCENT_HIGHLIGHT_BOOST_KEY];
+      }
+      await this.writeConfig(configUri, config, settings.configFile);
+      await this.applyWindowAccentConfig(folder, config);
+      return;
     }
-    await this.writeConfig(configUri, config, settings.configFile);
-    await this.applyWindowAccentConfig(folder, config);
+    await this.applyWindowAccentConfig(folder, {
+      ...config,
+      ...(typeof normalized === 'number'
+        ? { [DEFAULT_WINDOW_ACCENT_HIGHLIGHT_BOOST_KEY]: normalized }
+        : {}),
+    });
     this.onDidChangeEmitter.fire();
   }
 

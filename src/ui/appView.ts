@@ -66,7 +66,7 @@ export type AppViewTracker = {
   applyColorPreset(): Promise<void>;
   reportInvalidAccentInput(scope: string, value: string): Promise<void>;
   clearInvalidAccentInput(): Promise<void>;
-  setWindowAccentHighlightBoost(value: number | undefined): Promise<void>;
+  setWindowAccentHighlightBoost(value: number | undefined, preview?: boolean): Promise<void>;
 };
 
 export class HarbormasterAppViewProvider implements vscode.WebviewViewProvider {
@@ -230,8 +230,8 @@ export class HarbormasterAppViewProvider implements vscode.WebviewViewProvider {
       return;
     }
     if (message.type === 'setHighlightBoost' && typeof message.value === 'number') {
-      await this.tracker.setWindowAccentHighlightBoost(message.value);
-      await this.refresh();
+      const preview = Boolean(message.preview);
+      await this.tracker.setWindowAccentHighlightBoost(message.value, preview);
       return;
     }
     const normalizeAccentColor = this.normalizeAccentColor;

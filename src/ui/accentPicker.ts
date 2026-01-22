@@ -841,18 +841,24 @@ export function getAccentPickerHtml(
       if (highlightBoost && highlightBoostValue) {
         let boostTimer = null;
         let lastSent = null;
-        const sendBoost = (value) => {
-          if (lastSent === value) return;
+        let pendingValue = null;
+        const sendBoost = (value, preview) => {
+          if (lastSent === value && preview) return;
           lastSent = value;
-          vscode.postMessage({ type: 'setHighlightBoost', value });
+          vscode.postMessage({ type: 'setHighlightBoost', value, preview });
         };
         const scheduleBoost = (value) => {
-          if (boostTimer) {
-            clearTimeout(boostTimer);
-          }
-          boostTimer = setTimeout(() => {
-            boostTimer = null;
-            sendBoost(value);
+          pendingValue = value;
+          if (boostTimer) return;
+          boostTimer = setInterval(() => {
+            if (pendingValue === null) {
+              clearInterval(boostTimer);
+              boostTimer = null;
+              return;
+            }
+            const next = pendingValue;
+            pendingValue = null;
+            sendBoost(next, true);
           }, 250);
         };
         const readBoost = () => {
@@ -869,11 +875,12 @@ export function getAccentPickerHtml(
         const flush = () => {
           const value = readBoost();
           if (value === null) return;
+          pendingValue = null;
           if (boostTimer) {
-            clearTimeout(boostTimer);
+            clearInterval(boostTimer);
             boostTimer = null;
           }
-          sendBoost(value);
+          sendBoost(value, false);
         };
         highlightBoost.addEventListener('change', flush);
         highlightBoost.addEventListener('mouseup', flush);
