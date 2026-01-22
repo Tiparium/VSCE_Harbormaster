@@ -156,21 +156,22 @@ export function getAccentPickerHtml(
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 26px;
-        height: 26px;
+        width: 36px;
+        height: 36px;
         border-radius: 999px;
-        border: 1px solid var(--hm-border, rgba(127, 127, 127, 0.3));
-        background: color-mix(in srgb, var(--hm-card-bg, rgba(0, 0, 0, 0.12)) 70%, transparent);
+        border: 1px solid var(--hm-border, rgba(127, 127, 127, 0.4));
+        background: color-mix(in srgb, var(--hm-card-bg, rgba(0, 0, 0, 0.12)) 55%, transparent);
+        color: var(--vscode-foreground);
       }
       .eye-button svg {
-        width: 14px;
-        height: 14px;
+        width: 22px;
+        height: 22px;
         stroke: currentColor;
         fill: none;
-        stroke-width: 1.5;
+        stroke-width: 2.2;
         stroke-linejoin: round;
         stroke-linecap: round;
-        opacity: 0.85;
+        opacity: 1;
       }
       .actions {
         display: grid;
@@ -556,7 +557,7 @@ export function getAccentPickerHtml(
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'eye-button';
-        button.innerHTML = '<svg viewBox="0 0 24 24" role="img" aria-hidden="true"><path d="M2 12s4.2-6 10-6 10 6 10 6-4.2 6-10 6-10-6-10-6z"/><circle cx="12" cy="12" r="3.5"/></svg>';
+        button.innerHTML = '<svg viewBox="0 0 24 24" role="img" aria-hidden="true"><path d="M2 12s4.5-7 10-7 10 7 10 7-4.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="4.8"/><circle cx="12" cy="12" r="2.6" fill="currentColor" stroke="none"/></svg>';
         return button;
       };
 

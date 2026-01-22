@@ -3074,7 +3074,7 @@ function buildAccentColorMapForGroup(
       };
     case 'sidebar':
       return {
-        'sideBar.background': overrides['sideBar.background'] ?? applyAlpha(accent, 0.08),
+        'sideBar.background': overrides['sideBar.background'] ?? accent,
         'sideBar.foreground': overrides['sideBar.foreground'] ?? foreground,
         'sideBar.border': overrides['sideBar.border'] ?? applyAlpha(accent, 0.4),
       };

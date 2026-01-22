@@ -460,6 +460,15 @@ function getAppHtml(state: AppState): string {
         font-size: 1.1rem;
         font-weight: 700;
       }
+      .title-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .version-pill {
+        font-size: 0.75rem;
+        opacity: 0.75;
+      }
       .meta {
         display: flex;
         flex-wrap: wrap;
@@ -582,11 +591,13 @@ function getAppHtml(state: AppState): string {
     </style>
   </head>
   <body>
-      <div class="header panel-card">
-      <div class="title">${escapeHtml(name)}</div>
+    <div class="header panel-card">
+      <div class="title-row">
+        <div class="title">${escapeHtml(name)}</div>
+        <div class="pill version-pill">${escapeHtml(state.versionLabel)}</div>
+      </div>
       <div class="meta">
         <div class="pill">${escapeHtml(version)}</div>
-        <div class="pill">${escapeHtml(state.versionLabel)}</div>
       </div>
       <div class="meta">
         ${tags.map((tag) => `<div class="pill">${escapeHtml(tag)}</div>`).join('')}
