@@ -17,12 +17,14 @@ type AppCommand =
   | 'projectWindowTitle.addProjectToCatalog'
   | 'projectWindowTitle.openProjectFromCatalog'
   | 'projectWindowTitle.showMenu'
-  | 'projectWindowTitle.setAccentPickerBreakpoint';
+  | 'projectWindowTitle.setAccentPickerBreakpoint'
+  | 'projectWindowTitle.createHarbormasterProject'
+  | 'projectWindowTitle.openGlobalTags';
 
 type AppSection = {
   title: string;
   description?: string;
-  headerActions?: { label: string; command: AppCommand }[];
+  headerActions?: { label: string; command: AppCommand; variant?: 'open' | 'create' }[];
   actions: { label: string; command: AppCommand }[];
 };
 
@@ -51,6 +53,7 @@ export type AppViewTracker = {
   projectConfigExists(settings: any): Promise<boolean>;
   tagsFileExists(settings: any): Promise<boolean>;
   isCurrentProjectInCatalog(settings: any): Promise<boolean>;
+  isHarbormasterProject(settings: any): Promise<boolean>;
   setWindowAccentColor(accent: string | undefined): Promise<void>;
   setWindowAccentSection(sectionId: string, accent: string | undefined): Promise<void>;
   setWindowAccentSectionInherit(sectionId: string, inherit: boolean): Promise<void>;
@@ -59,6 +62,7 @@ export type AppViewTracker = {
   setWindowAccentOverride(key: string, accent: string | undefined): Promise<void>;
   recordWindowAccentHistory(groupId: string, accent: string): Promise<void>;
   previewWindowAccentGroup(groupId: string, accent: string | undefined): Promise<void>;
+  previewWindowAccentSection(sectionId: string, accent: string | undefined): Promise<void>;
   resetWindowAccentColor(): Promise<void>;
   clearWindowAccentLayers(): Promise<void>;
   swapWindowAccentBackup(): Promise<boolean>;
@@ -151,12 +155,15 @@ export class HarbormasterAppViewProvider implements vscode.WebviewViewProvider {
       this.normalizeAccentColor(info?.windowAccent),
       this.normalizeAccentSections(info?.windowAccentSections),
       this.normalizeAccentGroups(info?.windowAccentGroups),
+      this.normalizeAccentSectionInherit(info?.windowAccentSectionsInherit),
+      this.normalizeAccentGroupInherit(info?.windowAccentGroupsInherit),
       this.normalizeAccentOverrides(info?.windowAccentOverrides)
     );
     const health = await this.tracker.getHealthSnapshot();
     const configExists = await this.tracker.projectConfigExists(settings);
     const tagsExists = await this.tracker.tagsFileExists(settings);
     const inCatalog = await this.tracker.isCurrentProjectInCatalog(settings);
+    const isHarbormasterProject = await this.tracker.isHarbormasterProject(settings);
 
     this.view.webview.html = getAppHtml({
       name: info?.name,
@@ -166,6 +173,7 @@ export class HarbormasterAppViewProvider implements vscode.WebviewViewProvider {
       configExists,
       tagsExists,
       inCatalog,
+      isHarbormasterProject,
       versionLabel: `${this.version}${this.devToolsEnabled ? ' [DEV]' : ''}`,
       themeCss,
     });
@@ -195,6 +203,8 @@ export class HarbormasterAppViewProvider implements vscode.WebviewViewProvider {
       this.normalizeAccentColor(info?.windowAccent),
       this.normalizeAccentSections(info?.windowAccentSections),
       this.normalizeAccentGroups(info?.windowAccentGroups),
+      this.normalizeAccentSectionInherit(info?.windowAccentSectionsInherit),
+      this.normalizeAccentGroupInherit(info?.windowAccentGroupsInherit),
       this.normalizeAccentOverrides(info?.windowAccentOverrides)
     );
     this.view!.webview.html = getAccentPickerHtml(
@@ -344,6 +354,10 @@ export class HarbormasterAppViewProvider implements vscode.WebviewViewProvider {
       const preview = normalizeAccentColor(typeof message.value === 'string' ? message.value : undefined);
       await this.tracker.previewWindowAccentGroup(message.group, preview);
     }
+    if (message.type === 'previewSection' && typeof message.section === 'string') {
+      const preview = normalizeAccentColor(typeof message.value === 'string' ? message.value : undefined);
+      await this.tracker.previewWindowAccentSection(message.section, preview);
+    }
   }
 }
 
@@ -355,6 +369,7 @@ type AppState = {
   configExists: boolean;
   tagsExists: boolean;
   inCatalog: boolean;
+  isHarbormasterProject: boolean;
   versionLabel: string;
   themeCss: string;
 };
@@ -370,36 +385,48 @@ function getAppHtml(state: AppState): string {
   const openCatalogAction = {
     label: 'Open Project',
     command: 'projectWindowTitle.openProjectFromCatalog',
+    variant: 'open',
   } as const;
-  const addCatalogAction = state.inCatalog
-    ? []
-    : [{ label: 'Add to catalog', command: 'projectWindowTitle.addProjectToCatalog' as AppCommand }];
+  const createProjectAction = {
+    label: 'Create Harbormaster Project',
+    command: 'projectWindowTitle.createHarbormasterProject',
+    variant: 'create',
+  } as const;
+  const addCatalogAction =
+    state.isHarbormasterProject && !state.inCatalog
+      ? [{ label: 'Add to catalog', command: 'projectWindowTitle.addProjectToCatalog' as AppCommand }]
+      : [];
   const sections: AppSection[] = [
     {
       title: 'Project',
-      headerActions: [openCatalogAction],
+      headerActions: state.isHarbormasterProject ? [openCatalogAction] : [openCatalogAction, createProjectAction],
       actions: [
         ...addCatalogAction,
-        {
-          label: state.configExists ? 'Open project config' : 'Create project config',
-          command: configCommand,
-        },
-        { label: 'Refresh window title', command: 'projectWindowTitle.refresh' },
-        { label: 'Color settings', command: 'projectWindowTitle.setWindowAccent' },
-        { label: 'Rebuild project state', command: 'projectWindowTitle.rebuildState' },
+        ...(state.isHarbormasterProject
+          ? [
+              {
+                label: state.configExists ? 'Open project config' : 'Create project config',
+                command: configCommand,
+              },
+              { label: 'Refresh window title', command: 'projectWindowTitle.refresh' as AppCommand },
+              { label: 'Color settings', command: 'projectWindowTitle.setWindowAccent' as AppCommand },
+              { label: 'Rebuild project state', command: 'projectWindowTitle.rebuildState' as AppCommand },
+            ]
+          : []),
       ],
     },
     {
       title: 'Tags',
       actions: [
+        { label: 'Global tag menu', command: 'projectWindowTitle.openGlobalTags' },
         { label: 'Add global tag', command: 'projectWindowTitle.addGlobalTag' },
         ...(state.tagsExists
           ? [{ label: 'Remove global tag', command: 'projectWindowTitle.removeGlobalTag' as AppCommand }]
           : []),
-        ...(state.tagsExists
+        ...(state.tagsExists && state.isHarbormasterProject
           ? [{ label: 'Assign tag to project', command: 'projectWindowTitle.assignTag' as AppCommand }]
           : []),
-        ...(state.tagsExists
+        ...(state.tagsExists && state.isHarbormasterProject
           ? [{ label: 'Remove tag from project', command: 'projectWindowTitle.removeProjectTag' as AppCommand }]
           : []),
       ],
@@ -463,7 +490,7 @@ function getAppHtml(state: AppState): string {
         border-radius: 999px;
         font-size: 0.75rem;
       }
-      .section-actions .action-primary {
+      .section-actions .action-pill {
         display: inline-flex;
         align-items: center;
         gap: 8px;
@@ -476,7 +503,14 @@ function getAppHtml(state: AppState): string {
         color: var(--vscode-button-foreground);
         box-shadow: 0 0 0 1px color-mix(in srgb, var(--vscode-button-background) 35%, transparent);
       }
-      .action-primary.compact {
+      .section-actions .action-secondary {
+        background: linear-gradient(
+          135deg,
+          color-mix(in srgb, var(--vscode-button-background) 55%, transparent),
+          color-mix(in srgb, var(--hm-accent, var(--vscode-button-background)) 40%, transparent)
+        );
+      }
+      .action-pill.compact {
         width: 36px;
         height: 36px;
         padding: 0;
@@ -485,18 +519,18 @@ function getAppHtml(state: AppState): string {
         overflow: hidden;
         transition: width 180ms ease, padding 180ms ease;
       }
-      .action-primary.compact:hover {
-        width: 160px;
+      .action-pill.compact:hover {
+        width: var(--expanded-width, 160px);
         padding: 6px 14px;
         gap: 8px;
         justify-content: flex-start;
       }
-      .action-primary .icon {
+      .action-pill .icon {
         display: inline-flex;
         align-items: center;
         justify-content: center;
       }
-      .action-primary .icon svg {
+      .action-pill .icon svg {
         width: 16px;
         height: 16px;
         stroke: currentColor;
@@ -505,22 +539,22 @@ function getAppHtml(state: AppState): string {
         stroke-linejoin: round;
         stroke-linecap: round;
       }
-      .action-primary .label-text {
+      .action-pill .label-text {
         white-space: nowrap;
         opacity: 0;
         transition: opacity 120ms ease;
       }
-      .action-primary.compact .label-text {
+      .action-pill.compact .label-text {
         width: 0;
         overflow: hidden;
       }
-      .action-primary.compact:hover .label-text {
+      .action-pill.compact:hover .label-text {
         width: auto;
       }
-      .action-primary.compact:hover .label-text {
+      .action-pill.compact:hover .label-text {
         opacity: 1;
       }
-      .action-primary.compact:hover .icon {
+      .action-pill.compact:hover .icon {
         opacity: 0;
       }
       .grid {
@@ -568,17 +602,22 @@ function getAppHtml(state: AppState): string {
             section.headerActions && section.headerActions.length
               ? `<div class="section-actions">
                   ${section.headerActions
-                    .map(
-                      (action) =>
-                        `<button class="action-primary compact" data-command="${action.command}">
-                          <span class="icon" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" role="img" focusable="false">
+                    .map((action) => {
+                      const icon =
+                        action.variant === 'create'
+                          ? `<svg viewBox="0 0 24 24" role="img" focusable="false">
+                              <path d="M12 5v14M5 12h14" />
+                            </svg>`
+                          : `<svg viewBox="0 0 24 24" role="img" focusable="false">
                               <path d="M3.5 7.5h5l2 2h10v8.5a2 2 0 0 1-2 2h-15a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2z" />
-                            </svg>
-                          </span>
+                            </svg>`;
+                      const variantClass = action.variant === 'create' ? 'action-secondary' : 'action-primary';
+                      const expandedWidth = action.variant === 'create' ? '240px' : '160px';
+                      return `<button class="action-pill ${variantClass} compact" data-command="${action.command}" style="--expanded-width: ${expandedWidth};">
+                          <span class="icon" aria-hidden="true">${icon}</span>
                           <span class="label-text">${escapeHtml(action.label)}</span>
-                        </button>`
-                    )
+                        </button>`;
+                    })
                     .join('')}
                 </div>`
               : ''
@@ -634,9 +673,16 @@ function buildHarbormasterThemeCss(
   baseAccent: string | undefined,
   sectionAccents: Record<string, string>,
   groupAccents: Record<string, string>,
+  sectionInherit: Record<string, boolean>,
+  groupInherit: Record<string, boolean>,
   overrides: Record<string, string>
 ): string {
-  const accent = groupAccents.harbormaster || sectionAccents.harbormaster || baseAccent;
+  const explicitSection = sectionAccents.harbormaster;
+  const sectionUsesInherit = Boolean(sectionInherit.harbormaster) || !explicitSection;
+  const sectionColor = sectionUsesInherit ? baseAccent : explicitSection;
+  const explicitGroup = groupAccents.harbormaster;
+  const groupUsesInherit = Boolean(groupInherit.harbormaster) || !explicitGroup;
+  const accent = groupUsesInherit ? sectionColor : explicitGroup;
   const hasOverrides = Object.keys(overrides).some((key) => key.startsWith('harbormaster.'));
   if (!accent && !hasOverrides) {
     return '';

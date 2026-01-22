@@ -483,6 +483,9 @@ case "$COMMAND" in
     ;;
   version)
     case "$SUBCOMMAND" in
+      "")
+        version_show
+        ;;
       show)
         version_show
         ;;
@@ -495,9 +498,11 @@ case "$COMMAND" in
       prerelease)
         version_prerelease "$MODE"
         ;;
-      ""|-h|--help|help)
+      -h|--help|help)
         cat <<'EOH'
-Usage: ./run version <subcommand>
+Usage:
+  ./run version            Print the derived version.
+  ./run version <subcmd>   Manage version fields (see below).
 
 Subcommands:
   show                 Print the derived version.
@@ -506,6 +511,11 @@ Subcommands:
                        Bump numeric fields and clear project_version.
   prerelease <tag|clear>
                        Set or clear version_prerelease (clears project_version).
+                       Examples: prerelease alpha | prerelease beta | prerelease rc.1 | prerelease clear
+
+Notes:
+  - If project_version is set, it overrides the derived version.
+  - To change alpha/beta/rc markers, use: ./run version prerelease <tag>
 EOH
         ;;
       *)
@@ -542,7 +552,7 @@ Commands:
   compile [dev|prod]   Derive version from project config and run a single TypeScript build (no VSIX). Defaults to dev mode.
   watch [dev|prod]     Derive version and run tsc in watch mode. Defaults to dev mode.
   build <dev|prod>     Derive version, build, and package into ./builds/*.vsix (prompts on conflicts). Requires explicit mode.
-  version <subcmd>     Manage project version fields (see `./run version help`).
+  version [subcmd]     Show or manage version fields (see `./run version -h`).
   cleanup <subcmd>     Run cleanup helpers (e.g., `cleanup builds` to archive build artifacts).
   major_update         Bump version_major and reset version_minor to 0 (writes project config).
   help                 Show this help.

@@ -152,6 +152,26 @@ export function getAccentPickerHtml(
         align-items: center;
         gap: 8px;
       }
+      .eye-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        border-radius: 999px;
+        border: 1px solid var(--hm-border, rgba(127, 127, 127, 0.3));
+        background: color-mix(in srgb, var(--hm-card-bg, rgba(0, 0, 0, 0.12)) 70%, transparent);
+      }
+      .eye-button svg {
+        width: 14px;
+        height: 14px;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 1.5;
+        stroke-linejoin: round;
+        stroke-linecap: round;
+        opacity: 0.85;
+      }
       .actions {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -241,6 +261,18 @@ export function getAccentPickerHtml(
         display: flex;
         align-items: center;
         justify-content: space-between;
+        padding: 8px 10px;
+        border-radius: 10px;
+        border: 1px solid var(--hm-border, rgba(127, 127, 127, 0.25));
+        background: color-mix(in srgb, var(--hm-card-bg, rgba(0, 0, 0, 0.12)) 85%, transparent);
+      }
+      summary.section-toggle::after {
+        content: '▸';
+        opacity: 0.75;
+        transition: transform 120ms ease;
+      }
+      details[open] summary.section-toggle::after {
+        transform: rotate(90deg);
       }
       .compact-row {
         display: grid;
@@ -345,6 +377,8 @@ export function getAccentPickerHtml(
       const baseExplicit = ${JSON.stringify(Boolean(baseColor && baseColor.trim()))};
       const useThemeDefault = ${useThemeDefault};
       const defaultBaseColor = ${JSON.stringify(defaultBaseColor)};
+      const viewState = vscode.getState() || {};
+      const openSections = new Set(viewState.openSections || []);
       let baseDirty = false;
 
       const normalize = (value) => {
@@ -518,6 +552,14 @@ export function getAccentPickerHtml(
         return badge;
       };
 
+      const createEyeButton = () => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'eye-button';
+        button.innerHTML = '<svg viewBox="0 0 24 24" role="img" aria-hidden="true"><path d="M2 12s4.2-6 10-6 10 6 10 6-4.2 6-10 6-10-6-10-6z"/><circle cx="12" cy="12" r="3.5"/></svg>';
+        return button;
+      };
+
       const groupHasOverride = (group) => {
         if (group.color) return true;
         if (!group.keys) return false;
@@ -551,7 +593,26 @@ export function getAccentPickerHtml(
 
         const label = document.createElement('div');
         label.className = 'label';
-        label.textContent = section.label;
+        const labelText = document.createElement('span');
+        labelText.textContent = section.label;
+        const sectionEye = createEyeButton();
+        const previewSection = (value) => {
+          vscode.postMessage({ type: 'previewSection', section: section.id, value: value || '' });
+        };
+        const previewOn = () => {
+          const inverted = getBlinkColor(getSectionEffectiveColor(section.id));
+          if (inverted) {
+            previewSection(inverted);
+          }
+        };
+        const previewOff = () => {
+          previewSection('');
+        };
+        sectionEye.addEventListener('mousedown', previewOn);
+        sectionEye.addEventListener('mouseup', previewOff);
+        sectionEye.addEventListener('mouseleave', previewOff);
+        label.appendChild(labelText);
+        label.appendChild(sectionEye);
         // Inherit is now handled via the toggle button, so no badge here.
 
         const controls = document.createElement('div');
@@ -631,9 +692,38 @@ export function getAccentPickerHtml(
         row.dataset.override = group.color ? '1' : '0';
         row.dataset.inherit = group.inherit ? '1' : '0';
 
+        const getEffective = () => {
+          if (row.dataset.inherit === '1') {
+            return getSectionEffectiveColor(group.section);
+          }
+          if (row.dataset.override === '1') {
+            return input.value;
+          }
+          return getSectionEffectiveColor(group.section);
+        };
+
         const label = document.createElement('div');
         label.className = 'label';
-        label.textContent = group.label;
+        const labelText = document.createElement('span');
+        labelText.textContent = group.label;
+        const groupEye = createEyeButton();
+        const previewGroup = (value) => {
+          vscode.postMessage({ type: 'previewGroup', group: group.id, value: value || '' });
+        };
+        const previewOn = () => {
+          const inverted = getBlinkColor(getEffective());
+          if (inverted) {
+            previewGroup(inverted);
+          }
+        };
+        const previewOff = () => {
+          previewGroup('');
+        };
+        groupEye.addEventListener('mousedown', previewOn);
+        groupEye.addEventListener('mouseup', previewOff);
+        groupEye.addEventListener('mouseleave', previewOff);
+        label.appendChild(labelText);
+        label.appendChild(groupEye);
         // Inherit is now handled via the toggle button, so no badge here.
 
         const controls = document.createElement('div');
@@ -719,32 +809,6 @@ export function getAccentPickerHtml(
           vscode.postMessage({ type: 'clearGroup', group: group.id });
         });
 
-        const blink = document.createElement('button');
-        blink.textContent = 'Blink';
-        const getEffective = () => {
-          if (row.dataset.inherit === '1') {
-            return getSectionEffectiveColor(group.section);
-          }
-          if (row.dataset.override === '1') {
-            return input.value;
-          }
-          return getSectionEffectiveColor(group.section);
-        };
-        const previewGroup = (value) => {
-          vscode.postMessage({ type: 'previewGroup', group: group.id, value: value || '' });
-        };
-        const previewOn = () => {
-          const inverted = getBlinkColor(getEffective());
-          if (inverted) {
-            previewGroup(inverted);
-          }
-        };
-        const previewOff = () => {
-          previewGroup('');
-        };
-        blink.addEventListener('mousedown', previewOn);
-        blink.addEventListener('mouseup', previewOff);
-        blink.addEventListener('mouseleave', previewOff);
 
         controls.appendChild(wheel);
         controls.appendChild(inherit);
@@ -753,7 +817,6 @@ export function getAccentPickerHtml(
         actions.appendChild(keySelect);
         actions.appendChild(apply);
         actions.appendChild(clear);
-        actions.appendChild(blink);
 
         row.appendChild(label);
         row.appendChild(controls);
@@ -893,7 +956,12 @@ export function getAccentPickerHtml(
         block.appendChild(buildSectionRow(section));
 
         const details = document.createElement('details');
+        details.dataset.sectionId = section.id;
+        if (openSections.has(section.id)) {
+          details.open = true;
+        }
         const summary = document.createElement('summary');
+        summary.className = 'section-toggle';
         summary.textContent = section.label + ' groups';
         const hasOverrides = groups
           .filter((group) => group.section === section.id)
@@ -901,6 +969,14 @@ export function getAccentPickerHtml(
         if (hasOverrides) {
           summary.appendChild(createBadge('OVR', 'override'));
         }
+        details.addEventListener('toggle', () => {
+          if (details.open) {
+            openSections.add(section.id);
+          } else {
+            openSections.delete(section.id);
+          }
+          vscode.setState({ ...viewState, openSections: Array.from(openSections) });
+        });
         details.appendChild(summary);
 
         groups.filter((group) => group.section === section.id).forEach((group) => {

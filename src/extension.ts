@@ -1,10 +1,13 @@
 import * as vscode from 'vscode';
+import * as os from 'os';
+import * as path from 'path';
 
 import { setAccentPickerBreakpoint } from './ui/accentPanels';
 import { HarbormasterAppViewProvider } from './ui/appView';
 import { StatusBarController } from './ui/statusBar';
 
-const DEFAULT_META_DIR = '.harbormaster/.meta';
+const DEFAULT_HARBORMASTER_DIR = '.harbormaster';
+const DEFAULT_META_DIR = `${DEFAULT_HARBORMASTER_DIR}/.meta`;
 const DEFAULT_CONTEXT_DIR = '.harbormaster/.context';
 const DEFAULT_CONFIG_FILE = `${DEFAULT_META_DIR}/project.json`;
 const DEFAULT_PROJECT_KEY = 'project_name';
@@ -61,6 +64,7 @@ const DEFAULT_SHOW_VERSION = false;
 const FALLBACK_TITLE_TEMPLATE = '${dirty}${activeEditorShort}${separator}${rootName}${separator}${appName}';
 const DEFAULT_ACCENT_PICKER_BREAKPOINT = 560;
 const DEFAULT_HIGHLIGHT_INHERIT_BOOST = 0.15;
+const DEFAULT_PROJECT_CREATE_FOLDER = path.join(os.homedir(), 'Documents');
 const ACCENT_SECTIONS = [
   { id: 'window', label: 'Window' },
   { id: 'highlights', label: 'Highlights' },
@@ -222,6 +226,7 @@ interface ExtensionSettings {
   headlessPrefix: string;
   namedFormat: string;
   accentPickerBreakpoint: number;
+  projectCreateDefaultFolder: string;
 }
 
 interface ProjectInfo {
@@ -921,6 +926,31 @@ class ProjectTracker implements vscode.Disposable {
     this.previewActive = false;
   }
 
+  async previewWindowAccentSection(sectionId: string, accent: string | undefined): Promise<void> {
+    if (!isAccentSectionId(sectionId)) {
+      return;
+    }
+    const folder = getPrimaryWorkspaceFolder();
+    if (!folder) {
+      return;
+    }
+    this.previewActive = Boolean(accent);
+    const workbenchConfig = vscode.workspace.getConfiguration('workbench', folder.uri);
+    const existing = workbenchConfig.get<Record<string, unknown>>('colorCustomizations');
+    const current = existing && typeof existing === 'object' ? { ...existing } : {};
+    if (accent) {
+      const previewMap = buildAccentColorMapForSection(sectionId, accent, {});
+      const next = { ...current, ...previewMap };
+      await workbenchConfig.update('colorCustomizations', next, vscode.ConfigurationTarget.Workspace);
+      return;
+    }
+    const settings = getExtensionSettings();
+    const configUri = vscode.Uri.joinPath(folder.uri, settings.configFile);
+    const config = await this.readConfig(configUri);
+    await this.applyWindowAccentConfig(folder, config);
+    this.previewActive = false;
+  }
+
   isPreviewActive(): boolean {
     return this.previewActive;
   }
@@ -1113,6 +1143,27 @@ class ProjectTracker implements vscode.Disposable {
       .filter(Boolean)
       .join(' | ');
     void vscode.window.showInformationMessage(`Harbormaster: project state scaffolding complete. ${details}`);
+  }
+
+  async scaffoldProjectStateForFolder(targetUri: vscode.Uri, settings: ExtensionSettings): Promise<void> {
+    const folder: vscode.WorkspaceFolder = {
+      uri: targetUri,
+      name: path.basename(targetUri.fsPath),
+      index: 0,
+    };
+    const scaffolded = await this.scaffoldMissingFiles(folder, settings);
+    await this.ensureAgentsDirectiveNotice(folder);
+    await this.refreshHealth();
+    this.onDidChangeEmitter.fire();
+    if (scaffolded.created.length > 0 || scaffolded.warnings.length > 0) {
+      const details = [
+        scaffolded.created.length ? `Created: ${scaffolded.created.join(', ')}` : undefined,
+        scaffolded.warnings.length ? `Warnings: ${scaffolded.warnings.join('; ')}` : undefined,
+      ]
+        .filter(Boolean)
+        .join(' | ');
+      void vscode.window.showInformationMessage(`Harbormaster: project state scaffolding complete. ${details}`);
+    }
   }
 
   async addProjectToCatalog(): Promise<void> {
@@ -1594,6 +1645,14 @@ class ProjectTracker implements vscode.Disposable {
     }
 
     const settings = getExtensionSettings();
+    const isHarbormaster = await this.isHarbormasterRoot(folder);
+    if (!isHarbormaster) {
+      if (this.diagnostics) {
+        this.diagnostics.clear();
+      }
+      this.lastHealth = { missing: [], corrupt: [], legacy: [] };
+      return;
+    }
     const snapshot = await this.computeHealthSnapshot(folder, settings);
     this.lastHealth = snapshot;
     if (this.diagnostics) {
@@ -1610,6 +1669,14 @@ class ProjectTracker implements vscode.Disposable {
       await this.refreshHealth();
     }
     return this.lastHealth;
+  }
+
+  async isHarbormasterProject(settings: ExtensionSettings): Promise<boolean> {
+    const folder = getPrimaryWorkspaceFolder();
+    if (!folder) {
+      return false;
+    }
+    return this.isHarbormasterRoot(folder);
   }
 
   async projectConfigExists(settings: ExtensionSettings): Promise<boolean> {
@@ -1632,14 +1699,62 @@ class ProjectTracker implements vscode.Disposable {
     return this.isProjectInCatalog(folder, settings);
   }
 
+  async addProjectToCatalogByUri(
+    folderUri: vscode.Uri,
+    settings: ExtensionSettings,
+    options: { silent?: boolean } = {}
+  ): Promise<void> {
+    const { silent = false } = options;
+    await this.ensureCatalogFile(settings);
+    const configUri = vscode.Uri.joinPath(folderUri, settings.configFile);
+    if (!(await fileExists(configUri))) {
+      if (!silent) {
+        void vscode.window.showWarningMessage(`Harbormaster: ${settings.configFile} not found; cannot add to catalog.`);
+      }
+      return;
+    }
+    const config = await this.readConfig(configUri);
+    const name = coerceString(config?.project_name) ?? path.basename(folderUri.fsPath);
+    const tags = dedupeTags(Array.isArray(config?.tags) ? config.tags : []);
+    const now = new Date().toISOString();
+    const catalogUri = this.getCatalogUri(settings);
+    const catalog = await this.readCatalog(catalogUri);
+    const existingIndex = catalog.findIndex((p) => p.path === folderUri.fsPath);
+    if (existingIndex >= 0) {
+      const existing = catalog[existingIndex];
+      catalog[existingIndex] = { ...existing, name, tags, lastEditedAt: now };
+    } else {
+      catalog.push({
+        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        name,
+        path: folderUri.fsPath,
+        tags,
+        createdAt: now,
+      });
+    }
+    await this.ensureDirectory(catalogUri);
+    await this.writeCatalog(catalog, catalogUri);
+    if (!silent) {
+      void vscode.window.showInformationMessage(`Harbormaster: saved "${name}" to catalog.`);
+    }
+  }
+
   private async computeHealthSnapshot(
     folder: vscode.WorkspaceFolder,
     settings: ExtensionSettings
   ): Promise<HealthSnapshot> {
+    if (!(await this.isHarbormasterRoot(folder))) {
+      return { missing: [], corrupt: [], legacy: [] };
+    }
     const missing = await this.getMissingRequiredFiles(folder, settings);
     const corrupt = await this.getCorruptJsonFiles(folder, settings);
     const legacy = await this.getLegacyMetadataFiles(folder, settings);
     return { missing, corrupt, legacy };
+  }
+
+  private async isHarbormasterRoot(folder: vscode.WorkspaceFolder): Promise<boolean> {
+    const marker = vscode.Uri.joinPath(folder.uri, DEFAULT_HARBORMASTER_DIR);
+    return fileExists(marker);
   }
 
   private async getMissingRequiredFiles(
@@ -2192,7 +2307,9 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('projectWindowTitle.removeProjectTag', () => tracker.removeProjectTag()),
     vscode.commands.registerCommand('projectWindowTitle.addProjectToCatalog', () => tracker.addProjectToCatalog()),
     vscode.commands.registerCommand('projectWindowTitle.openProjectFromCatalog', () => tracker.openProjectFromCatalog()),
+    vscode.commands.registerCommand('projectWindowTitle.openGlobalTags', () => openGlobalTagMenu()),
     vscode.commands.registerCommand('projectWindowTitle.setAccentPickerBreakpoint', () => openAccentPickerBreakpoint()),
+    vscode.commands.registerCommand('projectWindowTitle.createHarbormasterProject', () => createHarbormasterProject()),
     vscode.commands.registerCommand('projectWindowTitle.saveColorPreset', () => tracker.saveColorPreset()),
     vscode.commands.registerCommand('projectWindowTitle.applyColorPreset', () => tracker.applyColorPreset()),
     new StatusBarController()
@@ -2328,6 +2445,7 @@ function getExtensionSettings(): ExtensionSettings {
     headlessPrefix: config.get<string>('headlessPrefix', DEFAULT_HEADLESS_PREFIX),
     namedFormat: config.get<string>('namedFormat', DEFAULT_NAMED_FORMAT),
     accentPickerBreakpoint: config.get<number>('accentPickerBreakpoint', DEFAULT_ACCENT_PICKER_BREAKPOINT),
+    projectCreateDefaultFolder: config.get<string>('projectCreateDefaultFolder', DEFAULT_PROJECT_CREATE_FOLDER),
   };
 }
 
@@ -2381,17 +2499,7 @@ async function createProjectConfig(): Promise<void> {
     }
   }
 
-  const payload = {
-    project_name: projectName.trim(),
-    project_version: (projectVersion ?? '').trim(),
-    version_major: 0,
-    version_minor: 0,
-    version_patch: 0,
-    version_prerelease: '',
-    tags: [],
-    version_scheme_note:
-      'version = <major>.<minor>.<patch>-<prerelease>; prerelease is optional.',
-  };
+  const payload = buildProjectConfigPayload(projectName.trim(), projectVersion ?? '');
 
   await ensureDirectoryForFile(targetUri);
   const content = Buffer.from(JSON.stringify(payload, null, 2) + '\n', 'utf8');
@@ -2407,9 +2515,104 @@ async function openWindowAccentPicker(): Promise<void> {
   appViewProviderSingleton?.setMode('accent');
 }
 
+async function openGlobalTagMenu(): Promise<void> {
+  void vscode.window.showInformationMessage('Harbormaster: Global tag menu coming soon.');
+}
+
 async function openAccentPickerBreakpoint(): Promise<void> {
   const settings = getExtensionSettings();
   await setAccentPickerBreakpoint(settings.accentPickerBreakpoint, DEFAULT_ACCENT_PICKER_BREAKPOINT);
+}
+
+async function createHarbormasterProject(): Promise<void> {
+  if (!trackerSingleton) {
+    void vscode.window.showErrorMessage('Harbormaster: tracker not initialized.');
+    return;
+  }
+  const settings = getExtensionSettings();
+  const startUri = getCreateProjectDefaultUri(settings);
+  const pick = await vscode.window.showOpenDialog({
+    canSelectFiles: false,
+    canSelectFolders: true,
+    canSelectMany: false,
+    defaultUri: startUri,
+    openLabel: 'Create Harbormaster project',
+  });
+  if (!pick || pick.length === 0) {
+    return;
+  }
+  const targetUri = pick[0];
+  const folderName = path.basename(targetUri.fsPath);
+  const metadata = await promptProjectMetadata(folderName);
+  if (!metadata) {
+    return;
+  }
+  const configUri = vscode.Uri.joinPath(targetUri, settings.configFile);
+  if (await fileExists(configUri)) {
+    const overwrite = await vscode.window.showWarningMessage(
+      `${settings.configFile} already exists in this folder. Overwrite?`,
+      { modal: true },
+      'Overwrite',
+      'Cancel'
+    );
+    if (overwrite !== 'Overwrite') {
+      return;
+    }
+  }
+  const payload = buildProjectConfigPayload(metadata.name, metadata.version);
+  await ensureDirectoryForFile(configUri);
+  await vscode.workspace.fs.writeFile(configUri, Buffer.from(JSON.stringify(payload, null, 2) + '\n', 'utf8'));
+  await trackerSingleton.scaffoldProjectStateForFolder(targetUri, settings);
+  await trackerSingleton.addProjectToCatalogByUri(targetUri, settings, { silent: true });
+
+  const currentFolder = getPrimaryWorkspaceFolder();
+  if (!currentFolder || currentFolder.uri.fsPath !== targetUri.fsPath) {
+    await vscode.commands.executeCommand('vscode.openFolder', targetUri, { forceNewWindow: false });
+  }
+}
+
+function getCreateProjectDefaultUri(settings: ExtensionSettings): vscode.Uri {
+  const currentFolder = getPrimaryWorkspaceFolder();
+  if (currentFolder) {
+    return currentFolder.uri;
+  }
+  const configured = settings.projectCreateDefaultFolder?.trim();
+  const fallback = DEFAULT_PROJECT_CREATE_FOLDER;
+  const resolved = configured && configured.length > 0 ? configured : fallback;
+  return vscode.Uri.file(resolved);
+}
+
+async function promptProjectMetadata(
+  defaultName: string
+): Promise<{ name: string; version: string | undefined } | undefined> {
+  const name = await vscode.window.showInputBox({
+    prompt: 'Project name',
+    value: defaultName,
+    ignoreFocusOut: true,
+    validateInput: (value) => (value.trim().length ? undefined : 'Project name is required'),
+  });
+  if (!name) {
+    return undefined;
+  }
+  const version = await vscode.window.showInputBox({
+    prompt: 'Project version (optional)',
+    placeHolder: 'e.g. 1.0.0-alpha',
+    ignoreFocusOut: true,
+  });
+  return { name: name.trim(), version: version?.trim() || undefined };
+}
+
+function buildProjectConfigPayload(name: string, version?: string): Record<string, any> {
+  return {
+    project_name: name,
+    project_version: version ?? '',
+    version_major: 0,
+    version_minor: 0,
+    version_patch: 0,
+    version_prerelease: '',
+    tags: [],
+    version_scheme_note: 'version = <major>.<minor>.<patch>-<prerelease>; prerelease is optional.',
+  };
 }
 
 
@@ -2911,6 +3114,21 @@ function buildAccentColorMapForGroup(
     default:
       return {};
   }
+}
+
+function buildAccentColorMapForSection(
+  sectionId: string,
+  accent: string | undefined,
+  overrides: Record<string, string>
+): Record<string, string> {
+  const map: Record<string, string> = {};
+  for (const group of ACCENT_GROUPS) {
+    if (group.section !== sectionId) {
+      continue;
+    }
+    Object.assign(map, buildAccentColorMapForGroup(group.id, accent, overrides));
+  }
+  return map;
 }
 
 function buildAccentColorMapFromConfig(

@@ -3,7 +3,7 @@
   "displayName": "Harbormaster",
   "icon": "resources/harbormaster.png",
   "description": "Project-aware window titles with a lightweight project tracker and quick actions.",
-  "version": "1.3.0-alpha",
+  "version": "2.0.0-alpha",
   "publisher": "harbormaster",
   "repository": {
     "type": "git",
@@ -108,6 +108,16 @@
         "category": "Harbormaster"
       },
       {
+        "command": "projectWindowTitle.createHarbormasterProject",
+        "title": "Harbormaster: Create Harbormaster project",
+        "category": "Harbormaster"
+      },
+      {
+        "command": "projectWindowTitle.openGlobalTags",
+        "title": "Harbormaster: Global tag menu",
+        "category": "Harbormaster"
+      },
+      {
         "command": "projectWindowTitle.setAccentPickerBreakpoint",
         "title": "Harbormaster: Set accent picker breakpoint",
         "category": "Harbormaster"
@@ -185,6 +195,11 @@
           "type": "number",
           "default": 560,
           "description": "Viewport width in pixels where the accent picker switches to its narrow layout."
+        },
+        "projectWindowTitle.projectCreateDefaultFolder": {
+          "type": "string",
+          "default": "",
+          "description": "Default folder path for the Create Harbormaster Project dialog (falls back to ~/Documents)."
         }
       }
     }
