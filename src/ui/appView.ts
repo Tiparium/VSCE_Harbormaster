@@ -457,17 +457,34 @@ function getAppHtml(state: AppState): string {
         margin-bottom: 12px;
       }
       .title {
-        font-size: 1.1rem;
+        font-size: 1rem;
         font-weight: 700;
+        line-height: 1.2;
       }
       .title-row {
         display: flex;
-        align-items: center;
-        gap: 8px;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
       }
       .version-pill {
-        font-size: 0.75rem;
+        font-size: 0.65rem;
         opacity: 0.75;
+        white-space: nowrap;
+        padding: 3px 7px;
+        align-self: flex-start;
+      }
+      .version-block {
+        display: grid;
+        justify-items: end;
+        gap: 4px;
+      }
+      .version-label {
+        font-size: 0.6rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        opacity: 0.6;
+        white-space: nowrap;
       }
       .meta {
         display: flex;
@@ -568,7 +585,7 @@ function getAppHtml(state: AppState): string {
       }
       .grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
         gap: 8px;
       }
       .health {
@@ -594,7 +611,10 @@ function getAppHtml(state: AppState): string {
     <div class="header panel-card">
       <div class="title-row">
         <div class="title">${escapeHtml(name)}</div>
-        <div class="pill version-pill">${escapeHtml(state.versionLabel)}</div>
+        <div class="version-block">
+          <div class="version-label">Harbormaster Version</div>
+          <div class="pill version-pill">${escapeHtml(state.versionLabel)}</div>
+        </div>
       </div>
       <div class="meta">
         <div class="pill">${escapeHtml(version)}</div>

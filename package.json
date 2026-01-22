@@ -3,7 +3,7 @@
   "displayName": "Harbormaster",
   "icon": "resources/harbormaster.png",
   "description": "Project-aware window titles with a lightweight project tracker and quick actions.",
-  "version": "2.0.0-alpha",
+  "version": "2.1.0-alpha",
   "publisher": "harbormaster",
   "repository": {
     "type": "git",
