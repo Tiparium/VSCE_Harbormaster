@@ -416,16 +416,6 @@ function getAppHtml(state: AppState): string {
       title: 'Tags',
       actions: [
         { label: 'Global tag menu', command: 'projectWindowTitle.openGlobalTags' },
-        { label: 'Add global tag', command: 'projectWindowTitle.addGlobalTag' },
-        ...(state.tagsExists
-          ? [{ label: 'Remove global tag', command: 'projectWindowTitle.removeGlobalTag' as AppCommand }]
-          : []),
-        ...(state.tagsExists && state.isHarbormasterProject
-          ? [{ label: 'Assign tag to project', command: 'projectWindowTitle.assignTag' as AppCommand }]
-          : []),
-        ...(state.tagsExists && state.isHarbormasterProject
-          ? [{ label: 'Remove tag from project', command: 'projectWindowTitle.removeProjectTag' as AppCommand }]
-          : []),
       ],
     },
     {

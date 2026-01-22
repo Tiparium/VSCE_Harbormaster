@@ -89,8 +89,6 @@ const ACCENT_GROUPS = [
       'activityBar.background',
       'activityBar.foreground',
       'activityBar.inactiveForeground',
-      'activityBarBadge.background',
-      'activityBarBadge.foreground',
     ],
   },
   {
@@ -115,6 +113,8 @@ const ACCENT_GROUPS = [
     label: 'Notifications',
     section: 'highlights',
     keys: [
+      'activityBarBadge.background',
+      'activityBarBadge.foreground',
       'notificationCenterHeader.background',
       'notificationCenterHeader.foreground',
       'notificationLink.foreground',
@@ -3027,8 +3027,6 @@ function buildAccentColorMapForGroup(
         'activityBar.background': overrides['activityBar.background'] ?? accent,
         'activityBar.foreground': overrides['activityBar.foreground'] ?? foreground,
         'activityBar.inactiveForeground': overrides['activityBar.inactiveForeground'] ?? applyAlpha(foreground, 0.6),
-        'activityBarBadge.background': overrides['activityBarBadge.background'] ?? accent,
-        'activityBarBadge.foreground': overrides['activityBarBadge.foreground'] ?? foreground,
       };
     case 'tabs':
       return {
@@ -3045,6 +3043,8 @@ function buildAccentColorMapForGroup(
       };
     case 'notifications':
       return {
+        'activityBarBadge.background': overrides['activityBarBadge.background'] ?? accent,
+        'activityBarBadge.foreground': overrides['activityBarBadge.foreground'] ?? foreground,
         'notificationCenterHeader.background': overrides['notificationCenterHeader.background'] ?? accent,
         'notificationCenterHeader.foreground': overrides['notificationCenterHeader.foreground'] ?? foreground,
         'notificationLink.foreground': overrides['notificationLink.foreground'] ?? accent,
