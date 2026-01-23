@@ -29,6 +29,7 @@ export function getAccentPickerHtml(
     defaultBaseColor?: string;
     themeCss?: string;
     highlightBoost?: number;
+    toolkitUri?: string;
   } = {}
 ): string {
   const showBackButton = Boolean(options.showBackButton);
@@ -61,306 +62,261 @@ export function getAccentPickerHtml(
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script type="module">
+      import {
+        provideVSCodeDesignSystem,
+        vsCodeBadge,
+        vsCodeButton,
+        vsCodeDropdown,
+        vsCodeOption,
+        vsCodeTextField,
+      } from "${options.toolkitUri ?? ''}";
+
+      provideVSCodeDesignSystem().register(
+        vsCodeBadge(),
+        vsCodeButton(),
+        vsCodeDropdown(),
+        vsCodeOption(),
+        vsCodeTextField()
+      );
+    </script>
     <style>
       ${BASE_WEBVIEW_STYLES}
       ${options.themeCss ?? ''}
-      .toolbar {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin-bottom: 12px;
+      .stack {
+        display: grid;
+        gap: 16px;
       }
       .topbar {
         display: flex;
         align-items: center;
         gap: 8px;
-        margin-bottom: 12px;
-      }
-      .topbar button {
-        padding: 4px 8px;
-      }
-      .toolbar {
-        display: grid;
-        gap: 8px;
-      }
-      .toolbar-title {
-        font-weight: 600;
-      }
-      .toolbar-actions {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 8px;
-      }
-      .toolbar-presets {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 8px;
-        padding-top: 6px;
-        margin-top: 4px;
-        border-top: 1px dashed rgba(127, 127, 127, 0.25);
-      }
-      .boost-row {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) 52px minmax(0, 1fr);
-        gap: 8px;
-        align-items: center;
-        margin-top: 10px;
-        padding-top: 8px;
-        border-top: 1px dashed rgba(127, 127, 127, 0.2);
-      }
-      .boost-row label {
-        font-size: 0.85rem;
-        opacity: 0.85;
-      }
-      .boost-row input[type='range'] {
-        width: 100%;
       }
       .section-block {
-        margin-top: 12px;
+        display: grid;
+        gap: 12px;
         padding: 12px;
-        border-radius: 12px;
-        border: 1px solid var(--hm-border, rgba(127, 127, 127, 0.2));
-        background: var(--hm-card-bg, rgba(0, 0, 0, 0.12));
+        border-radius: 8px;
+        border: 1px solid var(--vscode-input-border);
+      }
+      .section-block + .section-block {
+        margin-top: 14px;
+      }
+      .section-title {
+        font-weight: 600;
       }
       .row {
         display: grid;
-        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+      .label {
+        display: flex;
         align-items: center;
-        gap: 12px;
-        margin-bottom: 10px;
+        gap: 8px;
+        font-weight: 600;
       }
       .controls {
         display: grid;
         grid-template-columns: 42px minmax(0, 1fr);
-        gap: 8px;
+        gap: 14px;
         align-items: center;
       }
       .controls.inherit-controls {
         grid-template-columns: 42px auto minmax(0, 1fr);
-      }
-      .controls input[type="text"] {
-        width: 100%;
-      }
-      .input-invalid {
-        border-color: rgba(255, 255, 255, 0.35);
-      }
-      .label {
-        font-weight: 600;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      }
-      .eye-button {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 36px;
-        height: 36px;
-        border-radius: 999px;
-        border: 1px solid var(--hm-border, rgba(127, 127, 127, 0.4));
-        background: color-mix(in srgb, var(--hm-card-bg, rgba(0, 0, 0, 0.12)) 55%, transparent);
-        color: var(--vscode-foreground);
-      }
-      .eye-button svg {
-        width: 22px;
-        height: 22px;
-        stroke: currentColor;
-        fill: none;
-        stroke-width: 2.2;
-        stroke-linejoin: round;
-        stroke-linecap: round;
-        opacity: 1;
+        column-gap: 14px;
       }
       .actions {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 8px;
       }
-      .inherit-toggle {
-        padding: 6px 10px;
-        border-radius: 999px;
-        border: 1px solid var(--hm-border, rgba(127, 127, 127, 0.3));
-        background: var(--vscode-button-secondaryBackground, rgba(127, 127, 127, 0.2));
-        color: var(--vscode-button-secondaryForeground, var(--vscode-foreground));
-        font-size: 0.72rem;
-        letter-spacing: 0.05em;
-        text-transform: uppercase;
+      .actions.wide {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
-      .inherit-toggle.active {
+      .quick-actions {
+        display: grid;
+        gap: 8px;
+      }
+      .quick-actions-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+      }
+      .quick-actions-presets {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+      .boost-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto;
+        gap: 8px;
+        align-items: center;
+      }
+      .boost-row input[type='range'] {
+        width: 100%;
+      }
+      .inherit-toggle[aria-pressed="true"]::part(control) {
         background: var(--vscode-button-background);
         color: var(--vscode-button-foreground);
       }
-      .badge {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        padding: 2px 6px;
-        border-radius: 999px;
-        font-size: 0.7rem;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        border: 1px solid var(--hm-border, rgba(127, 127, 127, 0.3));
-        background: var(--hm-pill-bg, rgba(127, 127, 127, 0.2));
+      .eye-button {
+        width: 32px;
+        height: 32px;
       }
-      .badge.inherit {
-        opacity: 0.7;
+      .eye-button svg {
+        width: 20px;
+        height: 20px;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 2;
+        stroke-linejoin: round;
+        stroke-linecap: round;
       }
-      .badge.override {
-        background: var(--hm-accent, rgba(127, 127, 127, 0.35));
-      }
-      .dropdown {
-        position: relative;
-      }
-      .dropdown-trigger {
+      vscode-button,
+      vscode-dropdown,
+      vscode-text-field {
         width: 100%;
       }
-      .dropdown-list {
+      vscode-text-field.invalid::part(control) {
+        background: var(--hm-invalid-bg, var(--vscode-input-background));
+        color: var(--hm-invalid-fg, var(--vscode-input-foreground));
+      }
+      details summary {
+        list-style: none;
+        cursor: pointer;
+      }
+      details summary::-webkit-details-marker {
         display: none;
-        position: absolute;
-        left: 0;
-        right: 0;
-        top: calc(100% + 6px);
-        background: var(--vscode-editorWidget-background);
-        background: color-mix(in srgb, var(--vscode-editorWidget-background) 92%, transparent);
-        border: 1px solid var(--hm-border, rgba(127, 127, 127, 0.2));
-        border-radius: 10px;
-        padding: 6px;
-        z-index: 10;
-        max-height: 220px;
-        overflow-y: auto;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-      }
-      .dropdown-list.open {
-        display: grid;
-        gap: 6px;
-      }
-      .dropdown-item {
-        display: grid;
-        grid-template-columns: 18px 1fr;
-        gap: 8px;
-        align-items: center;
-        text-align: left;
-        padding: 6px 8px;
-      }
-      .swatch {
-        width: 14px;
-        height: 14px;
-        border-radius: 4px;
-        border: 1px solid var(--hm-border, rgba(127, 127, 127, 0.35));
-      }
-      details {
-        border-top: 1px dashed rgba(127, 127, 127, 0.3);
-        margin-top: 10px;
-        padding-top: 10px;
       }
       summary {
-        cursor: pointer;
-        font-weight: 600;
-        margin-bottom: 8px;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 8px 10px;
-        border-radius: 10px;
-        border: 1px solid var(--hm-border, rgba(127, 127, 127, 0.25));
-        background: color-mix(in srgb, var(--hm-card-bg, rgba(0, 0, 0, 0.12)) 85%, transparent);
+        gap: 8px;
+        padding: 6px 8px;
+        border-radius: 6px;
+        border: 1px solid var(--vscode-input-border);
       }
-      summary.section-toggle::after {
-        content: '▸';
-        opacity: 0.75;
+      .summary-left {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .chevron {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 16px;
+        height: 16px;
         transition: transform 120ms ease;
       }
-      details[open] summary.section-toggle::after {
+      details[open] .chevron {
         transform: rotate(90deg);
       }
-      .compact-row {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 12px;
-        align-items: center;
-        margin-bottom: 10px;
-      }
-      .compact-row .actions {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-      .row > * {
-        width: 100%;
-        justify-self: stretch;
-      }
-      .controls {
-        grid-template-columns: 42px minmax(0, 1fr);
-      }
-      .controls.inherit-controls {
-        grid-template-columns: 42px auto minmax(0, 1fr);
-      }
-      input[type="text"],
-      select,
-      button {
-        width: 100%;
+      .error-banner {
+        padding: 8px 10px;
+        border-radius: 6px;
+        border: 1px solid var(--vscode-inputValidation-errorBorder);
+        background: var(--vscode-inputValidation-errorBackground);
+        color: var(--vscode-inputValidation-errorForeground);
+        font-size: 0.85rem;
       }
     </style>
   </head>
   <body>
-    ${showBackButton ? `<div class="topbar"><button id="backButton">${backLabel}</button><strong>Accent Colors</strong></div>` : '<h2>Accent Colors</h2>'}
-    <div class="toolbar panel-card">
-      <div class="toolbar-title">Quick actions</div>
-      <div class="toolbar-actions">
-        <button id="clearAll" type="button">Clear all</button>
-        <button id="clearAllButBase" type="button">Clear all but base</button>
-        <button id="swapBackup" type="button">Swap backup</button>
+    <div class="stack">
+      ${showBackButton ? `<div class="topbar"><vscode-button id="backButton" appearance="secondary">${escapeHtml(backLabel)}</vscode-button></div>` : ''}
+      <div class="section-block quick-actions">
+        <div class="section-title">Quick actions</div>
+        <div class="quick-actions-grid">
+          <vscode-button id="clearAll" appearance="secondary">Clear all</vscode-button>
+          <vscode-button id="clearAllButBase" appearance="secondary">Clear all but base</vscode-button>
+          <vscode-button id="swapBackup" appearance="secondary">Swap backup</vscode-button>
+        </div>
+        <div class="quick-actions-presets">
+          <vscode-button id="savePreset" appearance="secondary">Save preset</vscode-button>
+          <vscode-button id="applyPreset" appearance="secondary">Apply preset</vscode-button>
+        </div>
+        <div class="boost-row">
+          <label for="highlightBoost">Highlight boost</label>
+          <input
+            id="highlightBoost"
+            type="range"
+            min="0"
+            max="40"
+            step="1"
+            value="${highlightBoostPercent}"
+          />
+          <div id="highlightBoostValue">${highlightBoostPercent}%</div>
+        </div>
       </div>
-      <div class="toolbar-presets">
-        <button id="savePreset" type="button">Save preset</button>
-        <button id="applyPreset" type="button">Apply preset</button>
+      <div class="section-block">
+        <div class="row">
+          <div class="label">Base accent</div>
+          <div class="controls">
+            <input id="baseWheel" type="color" value="${baseColor}" />
+            <vscode-text-field id="baseInput" value="${baseColor}"></vscode-text-field>
+          </div>
+          <div class="actions">
+            <div id="baseHistory"></div>
+            <vscode-button id="baseApply" appearance="secondary">Apply</vscode-button>
+            <vscode-button id="baseClear" appearance="secondary">Clear base</vscode-button>
+          </div>
+        </div>
       </div>
-      <div class="boost-row">
-        <label for="highlightBoost">Highlights inherit boost</label>
-        <div id="highlightBoostValue">${highlightBoostPercent}%</div>
-        <input id="highlightBoost" type="range" min="0" max="40" step="1" value="${highlightBoostPercent}" />
-      </div>
+      <div id="sections"></div>
     </div>
-    <div class="row panel-card">
-      <div class="label">Base accent</div>
-      <div class="controls">
-        <input id="baseWheel" type="color" value="${baseColor}" />
-        <input id="baseInput" type="text" value="${baseColor}" />
-      </div>
-      <div class="actions">
-        <div id="baseHistory"></div>
-        <button id="baseApply">Apply</button>
-        <button id="baseClear">Clear base</button>
-      </div>
-    </div>
-    <div id="sections"></div>
     <script>
       const vscode = acquireVsCodeApi();
-      const baseWheel = document.getElementById('baseWheel');
-      const baseInput = document.getElementById('baseInput');
-      const baseApply = document.getElementById('baseApply');
-      const baseClear = document.getElementById('baseClear');
-      const baseHistory = document.getElementById('baseHistory');
-      const clearAll = document.getElementById('clearAll');
-      const clearAllButBase = document.getElementById('clearAllButBase');
-      const backButton = document.getElementById('backButton');
-      const swapBackup = document.getElementById('swapBackup');
-      const savePreset = document.getElementById('savePreset');
-      const applyPreset = document.getElementById('applyPreset');
-      const highlightBoost = document.getElementById('highlightBoost');
-      const highlightBoostValue = document.getElementById('highlightBoostValue');
-      const sections = ${JSON.stringify(sectionPayload)};
-      const groups = ${JSON.stringify(groupPayload)};
-      const overrides = ${JSON.stringify(overrides)};
-      const sectionsRoot = document.getElementById('sections');
-      const baseHistoryValues = ${JSON.stringify(baseHistory)};
-      const baseExplicit = ${JSON.stringify(Boolean(baseColor && baseColor.trim()))};
-      const useThemeDefault = ${useThemeDefault};
-      const defaultBaseColor = ${JSON.stringify(defaultBaseColor)};
-      const viewState = vscode.getState() || {};
-      const openSections = new Set(viewState.openSections || []);
-      let baseDirty = false;
+      const reportError = (error) => {
+        const message = error instanceof Error ? error.message : String(error);
+        const banner = document.createElement('div');
+        banner.className = 'error-banner';
+        banner.textContent = 'Harbormaster UI error: ' + message;
+        document.body.prepend(banner);
+        try {
+          vscode.postMessage({ type: 'uiError', message });
+        } catch (err) {
+          console.error(err);
+        }
+      };
+      window.addEventListener('error', (event) => {
+        reportError(event.error || event.message);
+      });
+      window.addEventListener('unhandledrejection', (event) => {
+        reportError(event.reason);
+      });
+
+      try {
+        const baseWheel = document.getElementById('baseWheel');
+        const baseInput = document.getElementById('baseInput');
+        const baseApply = document.getElementById('baseApply');
+        const baseClear = document.getElementById('baseClear');
+        const baseHistory = document.getElementById('baseHistory');
+        const clearAll = document.getElementById('clearAll');
+        const clearAllButBase = document.getElementById('clearAllButBase');
+        const backButton = document.getElementById('backButton');
+        const swapBackup = document.getElementById('swapBackup');
+        const savePreset = document.getElementById('savePreset');
+        const applyPreset = document.getElementById('applyPreset');
+        const highlightBoost = document.getElementById('highlightBoost');
+        const highlightBoostValue = document.getElementById('highlightBoostValue');
+        const sections = ${JSON.stringify(sectionPayload)};
+        const groups = ${JSON.stringify(groupPayload)};
+        const overrides = ${JSON.stringify(overrides)};
+        const sectionsRoot = document.getElementById('sections');
+        const baseHistoryValues = ${JSON.stringify(baseHistory)};
+        const baseExplicit = ${JSON.stringify(Boolean(baseColor && baseColor.trim()))};
+        const useThemeDefault = ${useThemeDefault};
+        const defaultBaseColor = ${JSON.stringify(defaultBaseColor)};
+        const viewState = vscode.getState() || {};
+        const openSections = new Set(viewState.openSections || []);
+        let baseDirty = false;
 
       const normalize = (value) => {
-        const trimmed = value.trim();
+        if (value === null || value === undefined) return null;
+        const trimmed = String(value).trim();
         if (/^#[0-9a-fA-F]{6}$/.test(trimmed)) return trimmed.toUpperCase();
         if (/^#[0-9a-fA-F]{3}$/.test(trimmed)) {
           return '#' + trimmed[1] + trimmed[1] + trimmed[2] + trimmed[2] + trimmed[3] + trimmed[3];
@@ -397,7 +353,8 @@ export function getAccentPickerHtml(
       const getBlinkColor = (value) => invert(value);
 
       const parseColorToHex = (value) => {
-        const trimmed = value.trim();
+        if (value === null || value === undefined) return null;
+        const trimmed = String(value).trim();
         if (!trimmed) return null;
         const normalized = normalize(trimmed);
         if (normalized) return normalized;
@@ -420,15 +377,15 @@ export function getAccentPickerHtml(
 
       const setInvalidAccent = (targetInput, isInvalid) => {
         if (!isInvalid) {
-          targetInput.classList.remove('input-invalid');
-          targetInput.style.backgroundColor = '';
-          targetInput.style.color = '';
+          targetInput.classList.remove('invalid');
+          targetInput.style.removeProperty('--hm-invalid-bg');
+          targetInput.style.removeProperty('--hm-invalid-fg');
           return;
         }
         const inverted = getBlinkColor(getDefaultBaseColor());
-        targetInput.classList.add('input-invalid');
-        targetInput.style.backgroundColor = inverted || '';
-        targetInput.style.color = getDefaultBaseColor();
+        targetInput.classList.add('invalid');
+        targetInput.style.setProperty('--hm-invalid-bg', inverted || '');
+        targetInput.style.setProperty('--hm-invalid-fg', getDefaultBaseColor());
       };
 
       const bindColorPair = (wheel, input, scope) => {
@@ -470,42 +427,25 @@ export function getAccentPickerHtml(
       bindColorPair(baseWheel, baseInput, 'base');
 
       const buildHistoryDropdown = (values, onSelect) => {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'dropdown';
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'dropdown-trigger';
-        button.textContent = 'Recent...';
-        const list = document.createElement('div');
-        list.className = 'dropdown-list';
+        const dropdown = document.createElement('vscode-dropdown');
+        dropdown.setAttribute('aria-label', 'Recent colors');
+        const placeholder = document.createElement('vscode-option');
+        placeholder.value = '';
+        placeholder.textContent = 'Recent...';
+        dropdown.appendChild(placeholder);
         values.forEach((value) => {
-          const item = document.createElement('button');
-          item.type = 'button';
-          item.className = 'dropdown-item';
-          const swatch = document.createElement('span');
-          swatch.className = 'swatch';
-          swatch.style.background = value;
-          const label = document.createElement('span');
-          label.textContent = value;
-          item.appendChild(swatch);
-          item.appendChild(label);
-          item.addEventListener('click', () => {
-            list.classList.remove('open');
-            onSelect(value);
-          });
-          list.appendChild(item);
+          const option = document.createElement('vscode-option');
+          option.value = value;
+          option.textContent = value;
+          dropdown.appendChild(option);
         });
-        button.addEventListener('click', () => {
-          list.classList.toggle('open');
+        dropdown.value = '';
+        dropdown.addEventListener('change', () => {
+          if (!dropdown.value) return;
+          onSelect(dropdown.value);
+          dropdown.value = '';
         });
-        document.addEventListener('click', (event) => {
-          if (!wrapper.contains(event.target)) {
-            list.classList.remove('open');
-          }
-        });
-        wrapper.appendChild(button);
-        wrapper.appendChild(list);
-        return wrapper;
+        return dropdown;
       };
 
       const baseHistoryDropdown = buildHistoryDropdown(baseHistoryValues, (value) => {
@@ -524,15 +464,15 @@ export function getAccentPickerHtml(
       });
 
       const createBadge = (text, className) => {
-        const badge = document.createElement('span');
-        badge.className = 'badge ' + className;
+        const badge = document.createElement('vscode-badge');
+        badge.className = className;
         badge.textContent = text;
         return badge;
       };
 
       const createEyeButton = () => {
-        const button = document.createElement('button');
-        button.type = 'button';
+        const button = document.createElement('vscode-button');
+        button.setAttribute('appearance', 'icon');
         button.className = 'eye-button';
         button.innerHTML = '<svg viewBox="0 0 24 24" role="img" aria-hidden="true"><path d="M2 12s4.5-7 10-7 10 7 10 7-4.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="4.8"/><circle cx="12" cy="12" r="2.6" fill="currentColor" stroke="none"/></svg>';
         return button;
@@ -556,7 +496,7 @@ export function getAccentPickerHtml(
           return baseInput.value;
         }
         if (row.dataset.override === '1') {
-          const input = row.querySelector('input[type="text"]');
+          const input = row.querySelector('vscode-text-field');
           return input ? input.value : baseInput.value;
         }
         return baseInput.value;
@@ -600,8 +540,7 @@ export function getAccentPickerHtml(
         wheel.type = 'color';
         wheel.value = section.color ? section.color : getDefaultBaseColor();
 
-        const input = document.createElement('input');
-        input.type = 'text';
+        const input = document.createElement('vscode-text-field');
         input.value = section.color ? section.color : getDefaultBaseColor();
 
         bindColorPair(wheel, input, 'section:' + section.id);
@@ -614,35 +553,35 @@ export function getAccentPickerHtml(
           wheel.value = value;
         });
 
-        const inherit = document.createElement('button');
-        inherit.type = 'button';
+        const inherit = document.createElement('vscode-button');
         inherit.className = 'inherit-toggle';
+        inherit.setAttribute('appearance', 'secondary');
         inherit.textContent = 'Inherit';
-        if (row.dataset.inherit === '1') {
-          inherit.classList.add('active');
-        }
+        inherit.setAttribute('aria-pressed', row.dataset.inherit === '1' ? 'true' : 'false');
         inherit.addEventListener('click', () => {
           const next = row.dataset.inherit !== '1';
           row.dataset.inherit = next ? '1' : '0';
-          inherit.classList.toggle('active', next);
+          inherit.setAttribute('aria-pressed', next ? 'true' : 'false');
           vscode.postMessage({ type: 'inheritSection', section: section.id, enabled: next });
         });
 
-        const apply = document.createElement('button');
+        const apply = document.createElement('vscode-button');
+        apply.setAttribute('appearance', 'secondary');
         apply.textContent = 'Apply';
         apply.addEventListener('click', () => {
           row.dataset.override = '1';
           row.dataset.inherit = '0';
-          inherit.classList.remove('active');
+          inherit.setAttribute('aria-pressed', 'false');
           vscode.postMessage({ type: 'applySection', section: section.id, value: input.value });
         });
 
-        const clear = document.createElement('button');
+        const clear = document.createElement('vscode-button');
+        clear.setAttribute('appearance', 'secondary');
         clear.textContent = 'Clear';
         clear.addEventListener('click', () => {
           row.dataset.override = '0';
           row.dataset.inherit = '1';
-          inherit.classList.add('active');
+          inherit.setAttribute('aria-pressed', 'true');
           input.value = getDefaultBaseColor();
           wheel.value = getDefaultBaseColor();
           vscode.postMessage({ type: 'clearSection', section: section.id });
@@ -711,8 +650,7 @@ export function getAccentPickerHtml(
         wheel.type = 'color';
         wheel.value = group.color ? group.color : getDefaultBaseColor();
 
-        const input = document.createElement('input');
-        input.type = 'text';
+        const input = document.createElement('vscode-text-field');
         input.value = group.color ? group.color : getDefaultBaseColor();
 
         bindColorPair(wheel, input, 'group:' + group.id);
@@ -725,17 +663,19 @@ export function getAccentPickerHtml(
           wheel.value = value;
         });
 
-        const keySelect = document.createElement('select');
-        const keyPlaceholder = document.createElement('option');
+        const keySelect = document.createElement('vscode-dropdown');
+        keySelect.setAttribute('aria-label', 'Override key');
+        const keyPlaceholder = document.createElement('vscode-option');
         keyPlaceholder.value = '';
         keyPlaceholder.textContent = 'Override key...';
         keySelect.appendChild(keyPlaceholder);
         (group.keys || []).forEach((key) => {
-          const option = document.createElement('option');
+          const option = document.createElement('vscode-option');
           option.value = key;
           option.textContent = key;
           keySelect.appendChild(option);
         });
+        keySelect.value = '';
         keySelect.addEventListener('change', () => {
           if (!keySelect.value) return;
           const overrideValue = overrides[keySelect.value];
@@ -745,21 +685,20 @@ export function getAccentPickerHtml(
           }
         });
 
-        const inherit = document.createElement('button');
-        inherit.type = 'button';
+        const inherit = document.createElement('vscode-button');
         inherit.className = 'inherit-toggle';
+        inherit.setAttribute('appearance', 'secondary');
         inherit.textContent = 'Inherit';
-        if (row.dataset.inherit === '1') {
-          inherit.classList.add('active');
-        }
+        inherit.setAttribute('aria-pressed', row.dataset.inherit === '1' ? 'true' : 'false');
         inherit.addEventListener('click', () => {
           const next = row.dataset.inherit !== '1';
           row.dataset.inherit = next ? '1' : '0';
-          inherit.classList.toggle('active', next);
+          inherit.setAttribute('aria-pressed', next ? 'true' : 'false');
           vscode.postMessage({ type: 'inheritGroup', group: group.id, enabled: next });
         });
 
-        const apply = document.createElement('button');
+        const apply = document.createElement('vscode-button');
+        apply.setAttribute('appearance', 'secondary');
         apply.textContent = 'Apply';
         apply.addEventListener('click', () => {
           if (keySelect.value) {
@@ -768,11 +707,12 @@ export function getAccentPickerHtml(
           }
           row.dataset.override = '1';
           row.dataset.inherit = '0';
-          inherit.classList.remove('active');
+          inherit.setAttribute('aria-pressed', 'false');
           vscode.postMessage({ type: 'applyGroup', group: group.id, value: input.value });
         });
 
-        const clear = document.createElement('button');
+        const clear = document.createElement('vscode-button');
+        clear.setAttribute('appearance', 'secondary');
         clear.textContent = 'Clear';
         clear.addEventListener('click', () => {
           if (keySelect.value) {
@@ -781,7 +721,7 @@ export function getAccentPickerHtml(
           }
           row.dataset.override = '0';
           row.dataset.inherit = '1';
-          inherit.classList.add('active');
+          inherit.setAttribute('aria-pressed', 'true');
           input.value = getDefaultBaseColor();
           wheel.value = getDefaultBaseColor();
           vscode.postMessage({ type: 'clearGroup', group: group.id });
@@ -808,9 +748,9 @@ export function getAccentPickerHtml(
         document.querySelectorAll('.row[data-section-id]').forEach((row) => {
           if (row.dataset.inherit !== '1') return;
           if (row.dataset.override === '1') return;
-          const inputs = row.querySelectorAll('input');
+          const inputs = row.querySelectorAll('input, vscode-text-field');
           inputs.forEach((input) => {
-            if (input.type === 'text') input.value = fallback;
+            if (input.tagName === 'VSCODE-TEXT-FIELD') input.value = fallback;
             if (input.type === 'color') input.value = fallback;
           });
         });
@@ -819,9 +759,9 @@ export function getAccentPickerHtml(
           if (row.dataset.override === '1') return;
           const group = groupById.get(row.dataset.groupId);
           if (group && groupHasOverride(group)) return;
-          const inputs = row.querySelectorAll('input');
+          const inputs = row.querySelectorAll('input, vscode-text-field');
           inputs.forEach((input) => {
-            if (input.type === 'text') input.value = fallback;
+            if (input.tagName === 'VSCODE-TEXT-FIELD') input.value = fallback;
             if (input.type === 'color') input.value = fallback;
           });
         });
@@ -940,13 +880,20 @@ export function getAccentPickerHtml(
         }
         const summary = document.createElement('summary');
         summary.className = 'section-toggle';
-        summary.textContent = section.label + ' groups';
+        const summaryLeft = document.createElement('span');
+        summaryLeft.className = 'summary-left';
+        summaryLeft.textContent = section.label + ' groups';
+        const chevron = document.createElement('span');
+        chevron.className = 'chevron';
+        chevron.textContent = '›';
         const hasOverrides = groups
           .filter((group) => group.section === section.id)
           .some((group) => groupHasOverride(group));
         if (hasOverrides) {
-          summary.appendChild(createBadge('OVR', 'override'));
+          summaryLeft.appendChild(createBadge('OVR', 'override'));
         }
+        summary.appendChild(summaryLeft);
+        summary.appendChild(chevron);
         details.addEventListener('toggle', () => {
           if (details.open) {
             openSections.add(section.id);
@@ -964,7 +911,19 @@ export function getAccentPickerHtml(
         block.appendChild(details);
         sectionsRoot.appendChild(block);
       });
+      } catch (err) {
+        reportError(err);
+      }
     </script>
   </body>
 </html>`;
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }

@@ -89,7 +89,8 @@ export class HarbormasterAppViewProvider implements vscode.WebviewViewProvider {
     private readonly normalizeAccentOverrides: (value: unknown) => Record<string, string>,
     private readonly normalizeAccentHistory: (value: unknown) => Record<string, string[]>,
     private readonly version: string,
-    private readonly devToolsEnabled: boolean
+    private readonly devToolsEnabled: boolean,
+    private readonly extensionUri: vscode.Uri
   ) {
     this.tracker.onDidChange(() => void this.refresh());
   }
@@ -98,6 +99,9 @@ export class HarbormasterAppViewProvider implements vscode.WebviewViewProvider {
     this.view = view;
     view.webview.options = {
       enableScripts: true,
+      localResourceRoots: [
+        vscode.Uri.joinPath(this.extensionUri, 'resources'),
+      ],
     };
     view.webview.onDidReceiveMessage(async (message) => {
       if (!message || typeof message !== 'object') {
@@ -105,6 +109,10 @@ export class HarbormasterAppViewProvider implements vscode.WebviewViewProvider {
       }
       if (message.type === 'navigateHome') {
         this.setMode('home');
+        return;
+      }
+      if (message.type === 'uiError' && typeof message.message === 'string') {
+        void vscode.window.showErrorMessage(`Harbormaster UI error: ${message.message}`);
         return;
       }
       if (message.type === 'command' && typeof message.command === 'string') {
@@ -145,8 +153,9 @@ export class HarbormasterAppViewProvider implements vscode.WebviewViewProvider {
       return;
     }
     const settings = this.getSettings();
+    const toolkitUri = this.getToolkitUri(this.view.webview);
     if (this.mode === 'accent') {
-      await this.renderAccentView(settings);
+      await this.renderAccentView(settings, toolkitUri);
       return;
     }
     const info = await this.tracker.getCurrentProjectInfo(settings);
@@ -175,6 +184,7 @@ export class HarbormasterAppViewProvider implements vscode.WebviewViewProvider {
       isHarbormasterProject,
       versionLabel: `${this.version}${this.devToolsEnabled ? ' [DEV]' : ''}`,
       themeCss,
+      toolkitUri,
     });
   }
 
@@ -185,7 +195,7 @@ export class HarbormasterAppViewProvider implements vscode.WebviewViewProvider {
     void this.view.webview.postMessage({ type: 'themeDefaults' });
   }
 
-  private async renderAccentView(settings: unknown): Promise<void> {
+  private async renderAccentView(settings: unknown, toolkitUri: string): Promise<void> {
     const info = await this.tracker.getCurrentProjectInfo(settings);
     const baseExplicit = this.normalizeAccentColor(info?.windowAccent);
     const baseColor = baseExplicit ?? '';
@@ -222,6 +232,7 @@ export class HarbormasterAppViewProvider implements vscode.WebviewViewProvider {
         defaultBaseColor: '#181818',
         themeCss,
         highlightBoost,
+        toolkitUri,
       }
     );
   }
@@ -356,6 +367,11 @@ export class HarbormasterAppViewProvider implements vscode.WebviewViewProvider {
       await this.tracker.previewWindowAccentSection(message.section, preview);
     }
   }
+
+  private getToolkitUri(webview: vscode.Webview): string {
+    const toolkitPath = vscode.Uri.joinPath(this.extensionUri, 'resources', 'webview-ui-toolkit.js');
+    return webview.asWebviewUri(toolkitPath).toString();
+  }
 }
 
 type AppState = {
@@ -369,6 +385,7 @@ type AppState = {
   isHarbormasterProject: boolean;
   versionLabel: string;
   themeCss: string;
+  toolkitUri: string;
 };
 
 function getAppHtml(state: AppState): string {
@@ -429,21 +446,26 @@ function getAppHtml(state: AppState): string {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script type="module">
+      import {
+        provideVSCodeDesignSystem,
+        vsCodeBadge,
+        vsCodeButton,
+        vsCodeTag,
+      } from "${state.toolkitUri}";
+
+      provideVSCodeDesignSystem().register(vsCodeBadge(), vsCodeButton(), vsCodeTag());
+    </script>
     <style>
       ${BASE_WEBVIEW_STYLES}
       ${state.themeCss}
+      .stack {
+        display: grid;
+        gap: 16px;
+      }
       .header {
         display: grid;
-        gap: 6px;
-        padding: 12px;
-        border-radius: 12px;
-        background: var(--hm-panel-bg, var(--vscode-sideBarSectionHeader-background));
-        margin-bottom: 12px;
-      }
-      .title {
-        font-size: 1rem;
-        font-weight: 700;
-        line-height: 1.2;
+        gap: 8px;
       }
       .title-row {
         display: flex;
@@ -451,12 +473,10 @@ function getAppHtml(state: AppState): string {
         justify-content: space-between;
         gap: 12px;
       }
-      .version-pill {
-        font-size: 0.65rem;
-        opacity: 0.75;
-        white-space: nowrap;
-        padding: 3px 7px;
-        align-self: flex-start;
+      .title {
+        font-size: 1rem;
+        font-weight: 600;
+        line-height: 1.3;
       }
       .version-block {
         display: grid;
@@ -465,7 +485,7 @@ function getAppHtml(state: AppState): string {
       }
       .version-label {
         font-size: 0.6rem;
-        letter-spacing: 0.06em;
+        letter-spacing: 0.08em;
         text-transform: uppercase;
         opacity: 0.6;
         white-space: nowrap;
@@ -473,188 +493,108 @@ function getAppHtml(state: AppState): string {
       .meta {
         display: flex;
         flex-wrap: wrap;
-        gap: 8px;
-        font-size: 0.85rem;
-        opacity: 0.85;
+        gap: 6px;
       }
       .section {
-        margin-top: 12px;
+        display: grid;
+        gap: 8px;
       }
-      .section-title {
+      .section-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 8px;
       }
       .section-heading {
-        margin: 0;
-        font-size: 0.95rem;
+        font-size: 0.9rem;
+        font-weight: 600;
         letter-spacing: 0.08em;
+        text-transform: uppercase;
       }
       .section-actions {
         display: flex;
-        gap: 8px;
-      }
-      .section-actions button {
-        padding: 6px 10px;
-        border-radius: 999px;
-        font-size: 0.75rem;
-      }
-      .section-actions .action-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        background: linear-gradient(
-          135deg,
-          color-mix(in srgb, var(--hm-accent, var(--vscode-button-background)) 70%, transparent),
-          var(--vscode-button-background)
-        );
-        border: 1px solid color-mix(in srgb, var(--vscode-button-background) 75%, transparent);
-        color: var(--vscode-button-foreground);
-        box-shadow: 0 0 0 1px color-mix(in srgb, var(--vscode-button-background) 35%, transparent);
-      }
-      .section-actions .action-secondary {
-        background: linear-gradient(
-          135deg,
-          color-mix(in srgb, var(--vscode-button-background) 55%, transparent),
-          color-mix(in srgb, var(--hm-accent, var(--vscode-button-background)) 40%, transparent)
-        );
-      }
-      .action-pill.compact {
-        width: 36px;
-        height: 36px;
-        padding: 0;
-        gap: 0;
-        justify-content: center;
-        overflow: hidden;
-        transition: width 180ms ease, padding 180ms ease;
-      }
-      .action-pill.compact:hover {
-        width: var(--expanded-width, 160px);
-        padding: 6px 14px;
-        gap: 8px;
-        justify-content: flex-start;
-      }
-      .action-pill .icon {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-      }
-      .action-pill .icon svg {
-        width: 16px;
-        height: 16px;
-        stroke: currentColor;
-        fill: none;
-        stroke-width: 1.5;
-        stroke-linejoin: round;
-        stroke-linecap: round;
-      }
-      .action-pill .label-text {
-        white-space: nowrap;
-        opacity: 0;
-        transition: opacity 120ms ease;
-      }
-      .action-pill.compact .label-text {
-        width: 0;
-        overflow: hidden;
-      }
-      .action-pill.compact:hover .label-text {
-        width: auto;
-      }
-      .action-pill.compact:hover .label-text {
-        opacity: 1;
-      }
-      .action-pill.compact:hover .icon {
-        opacity: 0;
+        flex-wrap: wrap;
+        gap: 6px;
       }
       .grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
         gap: 8px;
       }
-      .grid button {
-        font-size: 0.85rem;
-        line-height: 1.2;
-        padding: 8px 10px;
-        white-space: normal;
+      vscode-button {
+        width: 100%;
+      }
+      .section-actions vscode-button {
+        width: auto;
       }
       .health {
-        margin-top: 10px;
+        display: grid;
+        gap: 6px;
         font-size: 0.85rem;
       }
       .health strong {
-        display: block;
-        margin-bottom: 6px;
+        font-weight: 600;
       }
       ul {
         margin: 0;
         padding-left: 18px;
       }
       .footer {
-        margin-top: 12px;
-        font-size: 0.75rem;
-        opacity: 0.7;
+        margin-top: 8px;
+        font-size: 0.7rem;
+        opacity: 0.6;
       }
     </style>
   </head>
   <body>
-    <div class="header panel-card">
-      <div class="title-row">
-        <div class="title">${escapeHtml(name)}</div>
-        <div class="version-block">
-          <div class="version-label">Harbormaster Version</div>
-          <div class="pill version-pill">${escapeHtml(state.versionLabel)}</div>
+    <div class="stack">
+      <div class="header">
+        <div class="title-row">
+          <div class="title">${escapeHtml(name)}</div>
+          <div class="version-block">
+            <div class="version-label">Harbormaster Version</div>
+            <vscode-badge>${escapeHtml(state.versionLabel)}</vscode-badge>
+          </div>
+        </div>
+        <div class="meta">
+          <vscode-tag>${escapeHtml(version)}</vscode-tag>
+          ${tags.map((tag) => `<vscode-tag>${escapeHtml(tag)}</vscode-tag>`).join('')}
         </div>
       </div>
-      <div class="meta">
-        <div class="pill">${escapeHtml(version)}</div>
-      </div>
-      <div class="meta">
-        ${tags.map((tag) => `<div class="pill">${escapeHtml(tag)}</div>`).join('')}
-      </div>
+      ${sections
+        .map(
+          (section) => `
+        <div class="section">
+          <div class="section-header">
+            <div class="section-heading">${escapeHtml(section.title)}</div>
+            ${
+              section.headerActions && section.headerActions.length
+                ? `<div class="section-actions">
+                    ${section.headerActions
+                      .map(
+                        (action) => `<vscode-button appearance="secondary" data-command="${action.command}">
+                            ${escapeHtml(action.label)}
+                          </vscode-button>`
+                      )
+                      .join('')}
+                  </div>`
+                : ''
+            }
+          </div>
+          <div class="grid">
+            ${section.actions
+              .map(
+                (action) =>
+                  `<vscode-button appearance="secondary" data-command="${action.command}">
+                    ${escapeHtml(action.label)}
+                  </vscode-button>`
+              )
+              .join('')}
+          </div>
+        </div>`
+        )
+        .join('')}
     </div>
-    ${sections
-      .map(
-        (section) => `
-      <div class="section panel-card">
-        <div class="section-title">
-          <h3 class="section-heading">${escapeHtml(section.title)}</h3>
-          ${
-            section.headerActions && section.headerActions.length
-              ? `<div class="section-actions">
-                  ${section.headerActions
-                    .map((action) => {
-                      const icon =
-                        action.variant === 'create'
-                          ? `<svg viewBox="0 0 24 24" role="img" focusable="false">
-                              <path d="M12 5v14M5 12h14" />
-                            </svg>`
-                          : `<svg viewBox="0 0 24 24" role="img" focusable="false">
-                              <path d="M3.5 7.5h5l2 2h10v8.5a2 2 0 0 1-2 2h-15a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2z" />
-                            </svg>`;
-                      const variantClass = action.variant === 'create' ? 'action-secondary' : 'action-primary';
-                      const expandedWidth = action.variant === 'create' ? '240px' : '160px';
-                      return `<button class="action-pill ${variantClass} compact" data-command="${action.command}" style="--expanded-width: ${expandedWidth};">
-                          <span class="icon" aria-hidden="true">${icon}</span>
-                          <span class="label-text">${escapeHtml(action.label)}</span>
-                        </button>`;
-                    })
-                    .join('')}
-                </div>`
-              : ''
-          }
-        </div>
-        <div class="grid">
-          ${section.actions
-            .map(
-              (action) =>
-                `<button data-command="${action.command}">${escapeHtml(action.label)}</button>`
-            )
-            .join('')}
-        </div>
-      </div>`
-      )
-      .join('')}
     ${
       health && (health.missing.length || health.corrupt.length || health.legacy.length)
         ? `<div class="section health">
@@ -668,7 +608,7 @@ function getAppHtml(state: AppState): string {
     <div class="footer">Harbormaster app view</div>
     <script>
       const vscode = acquireVsCodeApi();
-      document.querySelectorAll('button[data-command]').forEach((button) => {
+      document.querySelectorAll('[data-command]').forEach((button) => {
         button.addEventListener('click', () => {
           const command = button.getAttribute('data-command');
           if (command) {
@@ -722,14 +662,36 @@ function buildHarbormasterThemeCss(
   };
 
   const entries: string[] = [];
-  if (values.panelBg) entries.push(`--hm-panel-bg: ${values.panelBg};`);
-  if (values.cardBg) entries.push(`--hm-card-bg: ${values.cardBg};`);
-  if (values.border) entries.push(`--hm-border: ${values.border};`);
-  if (values.accent) entries.push(`--hm-accent: ${values.accent};`);
-  if (values.text) entries.push(`--hm-text: ${values.text};`);
-  if (values.buttonBg) entries.push(`--hm-button-bg: ${values.buttonBg};`);
-  if (values.buttonHover) entries.push(`--hm-button-hover: ${values.buttonHover};`);
-  if (values.pillBg) entries.push(`--hm-pill-bg: ${values.pillBg};`);
+  if (values.panelBg) {
+    entries.push(`--vscode-sideBar-background: ${values.panelBg};`);
+    entries.push(`--vscode-editor-background: ${values.panelBg};`);
+  }
+  if (values.cardBg) {
+    entries.push(`--vscode-sideBarSectionHeader-background: ${values.cardBg};`);
+    entries.push(`--vscode-editorWidget-background: ${values.cardBg};`);
+  }
+  if (values.border) {
+    entries.push(`--vscode-input-border: ${values.border};`);
+  }
+  if (values.accent) {
+    entries.push(`--vscode-button-background: ${values.accent};`);
+    entries.push(`--vscode-activityBarBadge-background: ${values.accent};`);
+  }
+  if (values.text) {
+    entries.push(`--vscode-foreground: ${values.text};`);
+    entries.push(`--vscode-button-foreground: ${values.text};`);
+    entries.push(`--vscode-button-secondaryForeground: ${values.text};`);
+    entries.push(`--vscode-badge-foreground: ${values.text};`);
+  }
+  if (values.buttonBg) {
+    entries.push(`--vscode-button-secondaryBackground: ${values.buttonBg};`);
+  }
+  if (values.buttonHover) {
+    entries.push(`--vscode-button-hoverBackground: ${values.buttonHover};`);
+  }
+  if (values.pillBg) {
+    entries.push(`--vscode-badge-background: ${values.pillBg};`);
+  }
 
   return entries.length > 0 ? `:root { ${entries.join(' ')} }` : '';
 }

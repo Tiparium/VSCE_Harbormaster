@@ -2277,7 +2277,8 @@ export function activate(context: vscode.ExtensionContext): void {
     normalizeAccentOverrides,
     normalizeAccentHistory,
     version,
-    isDevToolsEnabled(context)
+    isDevToolsEnabled(context),
+    context.extensionUri
   );
   appViewProviderSingleton = appViewProvider;
   context.subscriptions.push(
