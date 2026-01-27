@@ -2256,6 +2256,19 @@ class ProjectTracker implements vscode.Disposable {
 }
 
 export function activate(context: vscode.ExtensionContext): void {
+  let reportedPunycode = false;
+  process.on('warning', (warning) => {
+    if (warning.name === 'DeprecationWarning' && warning.message.includes('punycode')) {
+      console.warn('Harbormaster: punycode deprecation warning stack:', warning.stack);
+      if (reportedPunycode) {
+        return;
+      }
+      reportedPunycode = true;
+      void vscode.window.showWarningMessage(
+        'Harbormaster: Node punycode deprecation is triggered by VS Code’s built-in Markdown Language Features extension (vscode.markdown-language-features). Disable it in this workspace if you want to silence the warning.'
+      );
+    }
+  });
   const tracker = new ProjectTracker(context);
   trackerSingleton = tracker;
   const controller = new TitleController(tracker);
