@@ -10,7 +10,6 @@ export type AccentGroupDefinition = {
   keys: string[];
 };
 
-import { BASE_WEBVIEW_STYLES } from './styles';
 
 export function getAccentPickerHtml(
   baseColor: string,
@@ -30,6 +29,7 @@ export function getAccentPickerHtml(
     themeCss?: string;
     highlightBoost?: number;
     toolkitUri?: string;
+    stylesheetUri?: string;
   } = {}
 ): string {
   const showBackButton = Boolean(options.showBackButton);
@@ -80,148 +80,9 @@ export function getAccentPickerHtml(
         vsCodeTextField()
       );
     </script>
+    <link rel="stylesheet" href="${options.stylesheetUri ?? ''}" />
     <style>
-      ${BASE_WEBVIEW_STYLES}
       ${options.themeCss ?? ''}
-      .stack {
-        display: grid;
-        gap: 16px;
-      }
-      .topbar {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      }
-      .section-block {
-        display: grid;
-        gap: 12px;
-        padding: 12px;
-        border-radius: 8px;
-        border: 1px solid var(--vscode-input-border);
-      }
-      .section-block + .section-block {
-        margin-top: 14px;
-      }
-      .section-title {
-        font-weight: 600;
-      }
-      .row {
-        display: grid;
-        gap: 10px;
-      }
-      .label {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-weight: 600;
-      }
-      .controls {
-        display: grid;
-        grid-template-columns: 42px minmax(0, 1fr);
-        gap: 14px;
-        align-items: center;
-      }
-      .controls.inherit-controls {
-        grid-template-columns: 42px auto minmax(0, 1fr);
-        column-gap: 14px;
-      }
-      .actions {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 8px;
-      }
-      .actions.wide {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-      .quick-actions {
-        display: grid;
-        gap: 8px;
-      }
-      .quick-actions-grid {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 8px;
-      }
-      .quick-actions-presets {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 8px;
-      }
-      .boost-row {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto;
-        gap: 8px;
-        align-items: center;
-      }
-      .boost-row input[type='range'] {
-        width: 100%;
-      }
-      .inherit-toggle[aria-pressed="true"]::part(control) {
-        background: var(--vscode-button-background);
-        color: var(--vscode-button-foreground);
-      }
-      .eye-button {
-        width: 32px;
-        height: 32px;
-      }
-      .eye-button svg {
-        width: 20px;
-        height: 20px;
-        stroke: currentColor;
-        fill: none;
-        stroke-width: 2;
-        stroke-linejoin: round;
-        stroke-linecap: round;
-      }
-      vscode-button,
-      vscode-dropdown,
-      vscode-text-field {
-        width: 100%;
-      }
-      vscode-text-field.invalid::part(control) {
-        background: var(--hm-invalid-bg, var(--vscode-input-background));
-        color: var(--hm-invalid-fg, var(--vscode-input-foreground));
-      }
-      details summary {
-        list-style: none;
-        cursor: pointer;
-      }
-      details summary::-webkit-details-marker {
-        display: none;
-      }
-      summary {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 8px;
-        padding: 6px 8px;
-        border-radius: 6px;
-        border: 1px solid var(--vscode-input-border);
-      }
-      .summary-left {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-      }
-      .chevron {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 16px;
-        height: 16px;
-        transition: transform 120ms ease;
-      }
-      details[open] .chevron {
-        transform: rotate(90deg);
-      }
-      .error-banner {
-        padding: 8px 10px;
-        border-radius: 6px;
-        border: 1px solid var(--vscode-inputValidation-errorBorder);
-        background: var(--vscode-inputValidation-errorBackground);
-        color: var(--vscode-inputValidation-errorForeground);
-        font-size: 0.85rem;
-      }
     </style>
   </head>
   <body>
@@ -663,28 +524,6 @@ export function getAccentPickerHtml(
           wheel.value = value;
         });
 
-        const keySelect = document.createElement('vscode-dropdown');
-        keySelect.setAttribute('aria-label', 'Override key');
-        const keyPlaceholder = document.createElement('vscode-option');
-        keyPlaceholder.value = '';
-        keyPlaceholder.textContent = 'Override key...';
-        keySelect.appendChild(keyPlaceholder);
-        (group.keys || []).forEach((key) => {
-          const option = document.createElement('vscode-option');
-          option.value = key;
-          option.textContent = key;
-          keySelect.appendChild(option);
-        });
-        keySelect.value = '';
-        keySelect.addEventListener('change', () => {
-          if (!keySelect.value) return;
-          const overrideValue = overrides[keySelect.value];
-          if (overrideValue) {
-            input.value = overrideValue;
-            wheel.value = overrideValue;
-          }
-        });
-
         const inherit = document.createElement('vscode-button');
         inherit.className = 'inherit-toggle';
         inherit.setAttribute('appearance', 'secondary');
@@ -701,10 +540,6 @@ export function getAccentPickerHtml(
         apply.setAttribute('appearance', 'secondary');
         apply.textContent = 'Apply';
         apply.addEventListener('click', () => {
-          if (keySelect.value) {
-            vscode.postMessage({ type: 'applyOverride', key: keySelect.value, value: input.value });
-            return;
-          }
           row.dataset.override = '1';
           row.dataset.inherit = '0';
           inherit.setAttribute('aria-pressed', 'false');
@@ -715,10 +550,6 @@ export function getAccentPickerHtml(
         clear.setAttribute('appearance', 'secondary');
         clear.textContent = 'Clear';
         clear.addEventListener('click', () => {
-          if (keySelect.value) {
-            vscode.postMessage({ type: 'clearOverride', key: keySelect.value });
-            return;
-          }
           row.dataset.override = '0';
           row.dataset.inherit = '1';
           inherit.setAttribute('aria-pressed', 'true');
@@ -732,7 +563,6 @@ export function getAccentPickerHtml(
         controls.appendChild(inherit);
         controls.appendChild(input);
         actions.appendChild(history);
-        actions.appendChild(keySelect);
         actions.appendChild(apply);
         actions.appendChild(clear);
 
@@ -904,9 +734,12 @@ export function getAccentPickerHtml(
         });
         details.appendChild(summary);
 
+        const groupList = document.createElement('div');
+        groupList.className = 'group-list';
         groups.filter((group) => group.section === section.id).forEach((group) => {
-          details.appendChild(buildGroupRow(group));
+          groupList.appendChild(buildGroupRow(group));
         });
+        details.appendChild(groupList);
 
         block.appendChild(details);
         sectionsRoot.appendChild(block);

@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
 
 import { AccentGroupDefinition, AccentSectionDefinition, getAccentPickerHtml } from './accentPicker';
-import { BASE_WEBVIEW_STYLES } from './styles';
 
 type AppCommand =
   | 'projectWindowTitle.createConfig'
@@ -99,9 +98,7 @@ export class HarbormasterAppViewProvider implements vscode.WebviewViewProvider {
     this.view = view;
     view.webview.options = {
       enableScripts: true,
-      localResourceRoots: [
-        vscode.Uri.joinPath(this.extensionUri, 'resources'),
-      ],
+      localResourceRoots: [vscode.Uri.joinPath(this.extensionUri, 'resources')],
     };
     view.webview.onDidReceiveMessage(async (message) => {
       if (!message || typeof message !== 'object') {
@@ -154,8 +151,9 @@ export class HarbormasterAppViewProvider implements vscode.WebviewViewProvider {
     }
     const settings = this.getSettings();
     const toolkitUri = this.getToolkitUri(this.view.webview);
+    const stylesheetUri = this.getStylesheetUri(this.view.webview);
     if (this.mode === 'accent') {
-      await this.renderAccentView(settings, toolkitUri);
+      await this.renderAccentView(settings, toolkitUri, stylesheetUri);
       return;
     }
     const info = await this.tracker.getCurrentProjectInfo(settings);
@@ -185,6 +183,7 @@ export class HarbormasterAppViewProvider implements vscode.WebviewViewProvider {
       versionLabel: `${this.version}${this.devToolsEnabled ? ' [DEV]' : ''}`,
       themeCss,
       toolkitUri,
+      stylesheetUri,
     });
   }
 
@@ -195,7 +194,7 @@ export class HarbormasterAppViewProvider implements vscode.WebviewViewProvider {
     void this.view.webview.postMessage({ type: 'themeDefaults' });
   }
 
-  private async renderAccentView(settings: unknown, toolkitUri: string): Promise<void> {
+  private async renderAccentView(settings: unknown, toolkitUri: string, stylesheetUri: string): Promise<void> {
     const info = await this.tracker.getCurrentProjectInfo(settings);
     const baseExplicit = this.normalizeAccentColor(info?.windowAccent);
     const baseColor = baseExplicit ?? '';
@@ -233,6 +232,7 @@ export class HarbormasterAppViewProvider implements vscode.WebviewViewProvider {
         themeCss,
         highlightBoost,
         toolkitUri,
+        stylesheetUri,
       }
     );
   }
@@ -372,6 +372,11 @@ export class HarbormasterAppViewProvider implements vscode.WebviewViewProvider {
     const toolkitPath = vscode.Uri.joinPath(this.extensionUri, 'resources', 'webview-ui-toolkit.js');
     return webview.asWebviewUri(toolkitPath).toString();
   }
+
+  private getStylesheetUri(webview: vscode.Webview): string {
+    const stylesheetPath = vscode.Uri.joinPath(this.extensionUri, 'resources', 'harbormaster-ui.css');
+    return webview.asWebviewUri(stylesheetPath).toString();
+  }
 }
 
 type AppState = {
@@ -386,6 +391,7 @@ type AppState = {
   versionLabel: string;
   themeCss: string;
   toolkitUri: string;
+  stylesheetUri: string;
 };
 
 function getAppHtml(state: AppState): string {
@@ -456,94 +462,9 @@ function getAppHtml(state: AppState): string {
 
       provideVSCodeDesignSystem().register(vsCodeBadge(), vsCodeButton(), vsCodeTag());
     </script>
+    <link rel="stylesheet" href="${state.stylesheetUri}" />
     <style>
-      ${BASE_WEBVIEW_STYLES}
       ${state.themeCss}
-      .stack {
-        display: grid;
-        gap: 16px;
-      }
-      .header {
-        display: grid;
-        gap: 8px;
-      }
-      .title-row {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 12px;
-      }
-      .title {
-        font-size: 1rem;
-        font-weight: 600;
-        line-height: 1.3;
-      }
-      .version-block {
-        display: grid;
-        justify-items: end;
-        gap: 4px;
-      }
-      .version-label {
-        font-size: 0.6rem;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        opacity: 0.6;
-        white-space: nowrap;
-      }
-      .meta {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-      }
-      .section {
-        display: grid;
-        gap: 8px;
-      }
-      .section-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 8px;
-      }
-      .section-heading {
-        font-size: 0.9rem;
-        font-weight: 600;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-      }
-      .section-actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-      }
-      .grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-        gap: 8px;
-      }
-      vscode-button {
-        width: 100%;
-      }
-      .section-actions vscode-button {
-        width: auto;
-      }
-      .health {
-        display: grid;
-        gap: 6px;
-        font-size: 0.85rem;
-      }
-      .health strong {
-        font-weight: 600;
-      }
-      ul {
-        margin: 0;
-        padding-left: 18px;
-      }
-      .footer {
-        margin-top: 8px;
-        font-size: 0.7rem;
-        opacity: 0.6;
-      }
     </style>
   </head>
   <body>
@@ -665,32 +586,40 @@ function buildHarbormasterThemeCss(
   if (values.panelBg) {
     entries.push(`--vscode-sideBar-background: ${values.panelBg};`);
     entries.push(`--vscode-editor-background: ${values.panelBg};`);
+    entries.push(`--hm-panel-bg: ${values.panelBg};`);
   }
   if (values.cardBg) {
     entries.push(`--vscode-sideBarSectionHeader-background: ${values.cardBg};`);
     entries.push(`--vscode-editorWidget-background: ${values.cardBg};`);
+    entries.push(`--hm-card-bg: ${values.cardBg};`);
   }
   if (values.border) {
     entries.push(`--vscode-input-border: ${values.border};`);
+    entries.push(`--hm-border: ${values.border};`);
   }
   if (values.accent) {
     entries.push(`--vscode-button-background: ${values.accent};`);
     entries.push(`--vscode-activityBarBadge-background: ${values.accent};`);
+    entries.push(`--hm-accent: ${values.accent};`);
   }
   if (values.text) {
     entries.push(`--vscode-foreground: ${values.text};`);
     entries.push(`--vscode-button-foreground: ${values.text};`);
     entries.push(`--vscode-button-secondaryForeground: ${values.text};`);
     entries.push(`--vscode-badge-foreground: ${values.text};`);
+    entries.push(`--hm-text: ${values.text};`);
   }
   if (values.buttonBg) {
     entries.push(`--vscode-button-secondaryBackground: ${values.buttonBg};`);
+    entries.push(`--hm-button-bg: ${values.buttonBg};`);
   }
   if (values.buttonHover) {
     entries.push(`--vscode-button-hoverBackground: ${values.buttonHover};`);
+    entries.push(`--hm-button-hover: ${values.buttonHover};`);
   }
   if (values.pillBg) {
     entries.push(`--vscode-badge-background: ${values.pillBg};`);
+    entries.push(`--hm-pill-bg: ${values.pillBg};`);
   }
 
   return entries.length > 0 ? `:root { ${entries.join(' ')} }` : '';
