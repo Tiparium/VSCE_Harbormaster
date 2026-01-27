@@ -77,6 +77,92 @@ h3 {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  align-items: center;
+}
+.action-pill {
+  min-width: 36px;
+  min-height: 36px;
+  border-radius: 999px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid color-mix(in srgb, var(--vscode-button-background) 75%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--vscode-button-background) 35%, transparent);
+  color: var(--vscode-button-foreground);
+  background: transparent;
+  transition: width 180ms ease, padding 180ms ease;
+  overflow: hidden;
+  box-sizing: border-box;
+  text-align: center;
+  position: relative;
+}
+.action-pill.compact {
+  width: 36px;
+  padding: 0;
+  justify-content: center;
+}
+.action-pill.compact:hover {
+  width: var(--expanded-width, 160px);
+  padding: 0 12px;
+  justify-content: center;
+}
+.action-pill .icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  width: 18px;
+  height: 18px;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+.action-pill .icon svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.action-pill .label-text {
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 120ms ease;
+  max-width: 0;
+  overflow: hidden;
+  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+.action-pill.compact:hover .label-text {
+  opacity: 1;
+  max-width: 220px;
+}
+.action-pill.compact:hover .icon {
+  opacity: 0;
+}
+.action-pill.open {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--hm-accent, var(--vscode-button-background)) 70%, transparent),
+    var(--vscode-button-background)
+  );
+}
+.action-pill.create {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--vscode-button-background) 55%, transparent),
+    color-mix(in srgb, var(--hm-accent, var(--vscode-button-background)) 40%, transparent)
+  );
 }
 .grid {
   display: grid;

@@ -492,11 +492,22 @@ function getAppHtml(state: AppState): string {
               section.headerActions && section.headerActions.length
                 ? `<div class="section-actions">
                     ${section.headerActions
-                      .map(
-                        (action) => `<vscode-button appearance="secondary" data-command="${action.command}">
-                            ${escapeHtml(action.label)}
-                          </vscode-button>`
-                      )
+                      .map((action) => {
+                        const isCreate = action.variant === 'create';
+                        const icon = isCreate
+                          ? `<svg viewBox="0 0 24 24" role="img" focusable="false" aria-hidden="true">
+                              <path d="M12 5v14M5 12h14" />
+                            </svg>`
+                          : `<svg viewBox="0 0 24 24" role="img" focusable="false" aria-hidden="true">
+                              <path d="M3.5 7.5h5l2 2h10v8.5a2 2 0 0 1-2 2h-15a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2z" />
+                            </svg>`;
+                        const variantClass = isCreate ? 'action-pill create' : 'action-pill open';
+                        const expanded = isCreate ? '220px' : '160px';
+                        return `<button class="${variantClass} compact" data-command="${action.command}" style="--expanded-width: ${expanded};">
+                          <span class="icon">${icon}</span>
+                          <span class="label-text">${escapeHtml(action.label)}</span>
+                        </button>`;
+                      })
                       .join('')}
                   </div>`
                 : ''
