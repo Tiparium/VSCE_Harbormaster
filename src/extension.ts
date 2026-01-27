@@ -2007,7 +2007,7 @@ class ProjectTracker implements vscode.Disposable {
 
   private warnReadIssue(uri: vscode.Uri, error: unknown): void {
     const code = (error as NodeJS.ErrnoException)?.code;
-    if (code === 'ENOENT' || code === 'EntryNotFound') {
+    if (code === 'ENOENT' || code === 'EntryNotFound' || code === 'FileNotFound') {
       return;
     }
     const key = uri.fsPath;
@@ -2675,7 +2675,7 @@ async function readProjectInfo(folder: vscode.WorkspaceFolder, settings: Extensi
     };
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
-    if (code && code !== 'ENOENT' && code !== 'EntryNotFound') {
+    if (code && code !== 'ENOENT' && code !== 'EntryNotFound' && code !== 'FileNotFound') {
       console.warn(`Harbormaster: unable to read config file ${settings.configFile}:`, error);
     }
   }
