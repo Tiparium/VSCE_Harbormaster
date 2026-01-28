@@ -28,6 +28,78 @@ h3 {
   opacity: 0.7;
   font-size: 0.9rem;
 }
+.tag-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.tag-panel {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--hm-border, var(--vscode-input-border));
+  background: color-mix(in srgb, var(--hm-card-bg, var(--vscode-editorWidget-background)) 85%, transparent);
+}
+.tag-panel-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.tag-input-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+.tag-list {
+  display: grid;
+  gap: 8px;
+}
+.tag-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--hm-border, var(--vscode-input-border)) 70%, transparent);
+  background: color-mix(in srgb, var(--hm-card-bg, var(--vscode-editorWidget-background)) 70%, transparent);
+}
+.tag-row.assigned {
+  border-color: color-mix(in srgb, var(--hm-accent, var(--vscode-button-background)) 65%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--hm-accent, var(--vscode-button-background)) 35%, transparent);
+}
+.tag-label {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+.tag-action {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--hm-border, var(--vscode-input-border)) 70%, transparent);
+  background: color-mix(in srgb, var(--hm-button-bg, var(--vscode-button-secondaryBackground)) 90%, transparent);
+  color: var(--vscode-foreground);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.tag-action svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.tag-action[aria-disabled='true'] {
+  opacity: 0.4;
+  pointer-events: none;
+}
 
 /* App view */
 .stack {

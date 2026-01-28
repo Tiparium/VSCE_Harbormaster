@@ -10,10 +10,6 @@ type AppCommand =
   | 'projectWindowTitle.setWindowAccent'
   | 'projectWindowTitle.resetWindowAccent'
   | 'projectWindowTitle.rebuildState'
-  | 'projectWindowTitle.addGlobalTag'
-  | 'projectWindowTitle.removeGlobalTag'
-  | 'projectWindowTitle.assignTag'
-  | 'projectWindowTitle.removeProjectTag'
   | 'projectWindowTitle.addProjectToCatalog'
   | 'projectWindowTitle.openProjectFromCatalog'
   | 'projectWindowTitle.showMenu'
@@ -48,6 +44,10 @@ export type AppViewTracker = {
   windowAccentHistory?: Record<string, string[]>;
   windowAccentHighlightBoost?: number;
 } | undefined>;
+  getGlobalTags(settings: any): Promise<string[]>;
+  addGlobalTagValue(settings: any, tag: string): Promise<string | undefined>;
+  assignProjectTagValue(settings: any, tag: string): Promise<void>;
+  removeProjectTagValue(settings: any, tag: string): Promise<void>;
   getHealthSnapshot(): Promise<HealthSnapshot | undefined>;
   projectConfigExists(settings: any): Promise<boolean>;
   tagsFileExists(settings: any): Promise<boolean>;
@@ -127,6 +127,9 @@ export class HarbormasterAppViewProvider implements vscode.WebviewViewProvider {
       if (this.mode === 'accent') {
         await this.handleAccentMessage(message);
       }
+      if (this.mode === 'tags') {
+        await this.handleTagMessage(message);
+      }
       if (message.type === 'refresh') {
         await this.refresh();
       }
@@ -190,6 +193,7 @@ export class HarbormasterAppViewProvider implements vscode.WebviewViewProvider {
       inCatalog,
       isHarbormasterProject,
       versionLabel: `${this.version}${this.devToolsEnabled ? ' [DEV]' : ''}`,
+      devToolsEnabled: this.devToolsEnabled,
       themeCss,
       toolkitUri,
       stylesheetUri,
@@ -248,6 +252,7 @@ export class HarbormasterAppViewProvider implements vscode.WebviewViewProvider {
 
   private async renderTagView(settings: unknown, toolkitUri: string, stylesheetUri: string): Promise<void> {
     const info = await this.tracker.getCurrentProjectInfo(settings);
+    const globalTags = await this.tracker.getGlobalTags(settings);
     const themeCss = buildHarbormasterThemeCss(
       this.normalizeAccentColor(info?.windowAccent),
       this.normalizeAccentSections(info?.windowAccentSections),
@@ -257,10 +262,34 @@ export class HarbormasterAppViewProvider implements vscode.WebviewViewProvider {
       this.normalizeAccentOverrides(info?.windowAccentOverrides)
     );
     this.view!.webview.html = getTagMenuHtml({
+      globalTags,
+      projectTags: info?.tags ?? [],
       themeCss,
       toolkitUri,
       stylesheetUri,
     });
+  }
+
+  private async handleTagMessage(message: any): Promise<void> {
+    if (message.type === 'addGlobalTag' && typeof message.value === 'string') {
+      const settings = this.getSettings();
+      const created = await this.tracker.addGlobalTagValue(settings, message.value);
+      if (!created) {
+        void vscode.window.showWarningMessage('Harbormaster: Tag is empty or already exists.');
+        return;
+      }
+      await this.refresh();
+      return;
+    }
+    if (message.type === 'assignTag' && typeof message.value === 'string') {
+      await this.tracker.assignProjectTagValue(this.getSettings(), message.value);
+      await this.refresh();
+      return;
+    }
+    if (message.type === 'removeTag' && typeof message.value === 'string') {
+      await this.tracker.removeProjectTagValue(this.getSettings(), message.value);
+      await this.refresh();
+    }
   }
 
   private async handleAccentMessage(message: any): Promise<void> {
@@ -415,12 +444,15 @@ type AppState = {
   inCatalog: boolean;
   isHarbormasterProject: boolean;
   versionLabel: string;
+  devToolsEnabled: boolean;
   themeCss: string;
   toolkitUri: string;
   stylesheetUri: string;
 };
 
 type TagMenuState = {
+  globalTags: string[];
+  projectTags: string[];
   themeCss: string;
   toolkitUri: string;
   stylesheetUri: string;
@@ -473,10 +505,14 @@ function getAppHtml(state: AppState): string {
         { label: 'Global tag menu', command: 'projectWindowTitle.openGlobalTags' },
       ],
     },
-    {
-      title: 'Utility',
-      actions: [{ label: 'Command palette menu', command: 'projectWindowTitle.showMenu' }],
-    },
+    ...(state.devToolsEnabled
+      ? [
+          {
+            title: 'Developer Utilities',
+            actions: [{ label: 'Command palette menu', command: 'projectWindowTitle.showMenu' as AppCommand }],
+          },
+        ]
+      : []),
   ];
 
   const contentHtml = `
@@ -590,15 +626,66 @@ function getAppHtml(state: AppState): string {
 }
 
 function getTagMenuHtml(state: TagMenuState): string {
+  const globalTags = state.globalTags ?? [];
+  const projectTags = state.projectTags ?? [];
+  const assigned = new Set(projectTags.map((tag) => tag.toLowerCase()));
   const backButtonHtml =
     '<div class="view-top"><vscode-button id="backButton" appearance="secondary">Back</vscode-button></div>';
+  const globalList = globalTags.length
+    ? globalTags
+        .map((tag) => {
+          const isAssigned = assigned.has(tag.toLowerCase());
+          return `<div class="tag-row ${isAssigned ? 'assigned' : ''}">
+            <div class="tag-label">${escapeHtml(tag)}</div>
+            <button class="tag-action" data-action="assign" data-tag="${escapeHtml(tag)}" ${
+            isAssigned ? 'aria-disabled="true"' : ''
+          }>
+              <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+            </button>
+          </div>`;
+        })
+        .join('')
+    : `<div class="muted">No global tags yet.</div>`;
+  const projectList = projectTags.length
+    ? projectTags
+        .map(
+          (tag) => `<div class="tag-row">
+            <div class="tag-label">${escapeHtml(tag)}</div>
+            <button class="tag-action" data-action="remove" data-tag="${escapeHtml(tag)}">
+              <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
+                <path d="M5 12h14" />
+              </svg>
+            </button>
+          </div>`
+        )
+        .join('')
+    : `<div class="muted">No project tags yet.</div>`;
   const contentHtml = `
     <div class="stack">
       <div class="section">
         <div class="section-header">
           <div class="section-heading">Global tags</div>
         </div>
-        <div class="muted">Tag management UI is coming next.</div>
+        <div class="tag-columns">
+          <div class="tag-panel">
+            <div class="tag-panel-title">Global tags</div>
+            <div class="tag-input-row">
+              <vscode-text-field id="globalTagInput" placeholder="Add a tag"></vscode-text-field>
+              <vscode-button id="globalTagAdd" appearance="secondary">Add</vscode-button>
+            </div>
+            <div class="tag-list" id="globalTagList">
+              ${globalList}
+            </div>
+          </div>
+          <div class="tag-panel">
+            <div class="tag-panel-title">Project tags</div>
+            <div class="tag-list" id="projectTagList">
+              ${projectList}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   `;
@@ -612,9 +699,10 @@ function getTagMenuHtml(state: TagMenuState): string {
       import {
         provideVSCodeDesignSystem,
         vsCodeButton,
+        vsCodeTextField,
       } from "${state.toolkitUri}";
 
-      provideVSCodeDesignSystem().register(vsCodeButton());
+      provideVSCodeDesignSystem().register(vsCodeButton(), vsCodeTextField());
     </script>
     <link rel="stylesheet" href="${state.stylesheetUri}" />
     <style>
@@ -626,11 +714,45 @@ function getTagMenuHtml(state: TagMenuState): string {
     <script>
       const vscode = acquireVsCodeApi();
       const backButton = document.getElementById('backButton');
+      const globalInput = document.getElementById('globalTagInput');
+      const addButton = document.getElementById('globalTagAdd');
       if (backButton) {
         backButton.addEventListener('click', () => {
           vscode.postMessage({ type: 'navigateHome' });
         });
       }
+      const submitTag = () => {
+        if (!globalInput) return;
+        const value = globalInput.value || '';
+        if (!value.trim()) return;
+        vscode.postMessage({ type: 'addGlobalTag', value });
+      };
+      if (addButton) {
+        addButton.addEventListener('click', submitTag);
+      }
+      if (globalInput) {
+        globalInput.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            submitTag();
+          }
+        });
+      }
+      document.querySelectorAll('[data-action]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const action = button.getAttribute('data-action');
+          const tag = button.getAttribute('data-tag') || '';
+          if (!tag) return;
+          if (action === 'assign') {
+            if (button.getAttribute('aria-disabled') === 'true') return;
+            vscode.postMessage({ type: 'assignTag', value: tag });
+            return;
+          }
+          if (action === 'remove') {
+            vscode.postMessage({ type: 'removeTag', value: tag });
+          }
+        });
+      });
     </script>
   </body>
 </html>`;

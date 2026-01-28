@@ -458,40 +458,68 @@ class ProjectTracker implements vscode.Disposable {
     this.onDidChangeEmitter.fire();
   }
 
-  async addGlobalTag(): Promise<void> {
+  async getGlobalTags(settings: ExtensionSettings): Promise<string[]> {
+    await this.ensureInitialized();
+    return this.readTagsFile(settings);
+  }
+
+  async addGlobalTagValue(settings: ExtensionSettings, value: string): Promise<string | undefined> {
+    await this.ensureInitialized();
+    const normalized = normalizeTag(value);
+    if (!normalized) {
+      return undefined;
+    }
+    const tags = await this.readTagsFile(settings);
+    if (tags.some((t) => t.toLowerCase() === normalized.toLowerCase())) {
+      return undefined;
+    }
+    tags.push(normalized);
+    await this.writeTagsFile(settings, tags);
+    this.onDidChangeEmitter.fire();
+    return normalized;
+  }
+
+  async assignProjectTagValue(settings: ExtensionSettings, value: string): Promise<void> {
     const folder = getPrimaryWorkspaceFolder();
     if (!folder) {
       void vscode.window.showErrorMessage('Harbormaster: No workspace folder open.');
       return;
     }
-
     await this.ensureInitialized();
-    const settings = getExtensionSettings();
-    const tags = await this.readTagsFile(settings);
-    const input = await vscode.window.showInputBox({
-      prompt: 'Tag name',
-      placeHolder: 'e.g. backend',
-      ignoreFocusOut: true,
-      validateInput: (value) => {
-        const normalized = normalizeTag(value);
-        if (!normalized) {
-          return 'Tag cannot be empty';
-        }
-        if (tags.some((t) => t.toLowerCase() === normalized.toLowerCase())) {
-          return 'Tag already exists';
-        }
-        return undefined;
-      },
-    });
-    if (!input) {
+    const normalized = normalizeTag(value);
+    if (!normalized) {
       return;
     }
-
-    const normalized = normalizeTag(input);
-    tags.push(normalized);
-    await this.writeTagsFile(settings, tags);
+    const configUri = vscode.Uri.joinPath(folder.uri, settings.configFile);
+    const config = await this.readConfig(configUri);
+    const currentTags = dedupeTags(Array.isArray(config.tags) ? config.tags : []);
+    if (currentTags.some((t) => t.toLowerCase() === normalized.toLowerCase())) {
+      return;
+    }
+    currentTags.push(normalized);
+    config.tags = dedupeTags(currentTags);
+    await this.writeConfig(configUri, config, settings.configFile);
     this.onDidChangeEmitter.fire();
-    void vscode.window.showInformationMessage(`Harbormaster: added tag "${normalized}".`);
+  }
+
+  async removeProjectTagValue(settings: ExtensionSettings, value: string): Promise<void> {
+    const folder = getPrimaryWorkspaceFolder();
+    if (!folder) {
+      void vscode.window.showErrorMessage('Harbormaster: No workspace folder open.');
+      return;
+    }
+    await this.ensureInitialized();
+    const normalized = normalizeTag(value);
+    if (!normalized) {
+      return;
+    }
+    const configUri = vscode.Uri.joinPath(folder.uri, settings.configFile);
+    const config = await this.readConfig(configUri);
+    const currentTags = dedupeTags(Array.isArray(config.tags) ? config.tags : []);
+    const remaining = currentTags.filter((t) => t.toLowerCase() !== normalized.toLowerCase());
+    config.tags = remaining;
+    await this.writeConfig(configUri, config, settings.configFile);
+    this.onDidChangeEmitter.fire();
   }
 
   async saveColorPreset(): Promise<void> {
@@ -563,106 +591,6 @@ class ProjectTracker implements vscode.Disposable {
     await this.applyWindowAccentConfig(folder, config);
     this.onDidChangeEmitter.fire();
     void vscode.window.showInformationMessage(`Harbormaster: applied preset "${pick.label}".`);
-  }
-
-  async removeGlobalTag(): Promise<void> {
-    const folder = getPrimaryWorkspaceFolder();
-    if (!folder) {
-      void vscode.window.showErrorMessage('Harbormaster: No workspace folder open.');
-      return;
-    }
-
-    await this.ensureInitialized();
-    const settings = getExtensionSettings();
-    const tags = await this.readTagsFile(settings);
-    if (tags.length === 0) {
-      void vscode.window.showInformationMessage('Harbormaster: No tags to remove.');
-      return;
-    }
-
-    const pick = await vscode.window.showQuickPick(tags, {
-      placeHolder: 'Select a tag to remove',
-    });
-    if (!pick) {
-      return;
-    }
-
-    const remaining = tags.filter((t) => t !== pick);
-    await this.writeTagsFile(settings, remaining);
-    await this.removeTagFromProjectConfig(folder, settings, pick);
-    this.onDidChangeEmitter.fire();
-    void vscode.window.showInformationMessage(`Harbormaster: removed tag "${pick}".`);
-  }
-
-  async assignTagToProject(): Promise<void> {
-    const folder = getPrimaryWorkspaceFolder();
-    if (!folder) {
-      void vscode.window.showErrorMessage('Harbormaster: No workspace folder open.');
-      return;
-    }
-
-    await this.ensureInitialized();
-    const settings = getExtensionSettings();
-    const configUri = vscode.Uri.joinPath(folder.uri, settings.configFile);
-    const tags = await this.readTagsFile(settings);
-    if (tags.length === 0) {
-      const create = await vscode.window.showWarningMessage('No tags exist. Create one first?', 'Create tag', 'Cancel');
-      if (create === 'Create tag') {
-        await this.addGlobalTag();
-      }
-      return;
-    }
-
-    const pick = await vscode.window.showQuickPick(tags, {
-      placeHolder: 'Select a tag to assign',
-    });
-    if (!pick) {
-      return;
-    }
-
-    const config = await this.readConfig(configUri);
-    const currentTags = dedupeTags(Array.isArray(config.tags) ? config.tags : []);
-    if (currentTags.some((t) => t.toLowerCase() === pick.toLowerCase())) {
-      void vscode.window.showInformationMessage(`Harbormaster: project already has tag "${pick}".`);
-      return;
-    }
-
-    currentTags.push(pick);
-    config.tags = dedupeTags(currentTags);
-    await this.writeConfig(configUri, config, settings.configFile);
-    this.onDidChangeEmitter.fire();
-    void vscode.window.showInformationMessage(`Harbormaster: assigned tag "${pick}" to project.`);
-  }
-
-  async removeProjectTag(): Promise<void> {
-    const folder = getPrimaryWorkspaceFolder();
-    if (!folder) {
-      void vscode.window.showErrorMessage('Harbormaster: No workspace folder open.');
-      return;
-    }
-
-    await this.ensureInitialized();
-    const settings = getExtensionSettings();
-    const configUri = vscode.Uri.joinPath(folder.uri, settings.configFile);
-    const config = await this.readConfig(configUri);
-    const currentTags = dedupeTags(Array.isArray(config.tags) ? config.tags : []);
-    if (currentTags.length === 0) {
-      void vscode.window.showInformationMessage('Harbormaster: Project has no tags.');
-      return;
-    }
-
-    const pick = await vscode.window.showQuickPick(currentTags, {
-      placeHolder: 'Select a tag to remove from this project',
-    });
-    if (!pick) {
-      return;
-    }
-
-    const remaining = currentTags.filter((t) => t !== pick);
-    config.tags = remaining;
-    await this.writeConfig(configUri, config, settings.configFile);
-    this.onDidChangeEmitter.fire();
-    void vscode.window.showInformationMessage(`Harbormaster: removed tag "${pick}" from project.`);
   }
 
   async setWindowAccentColor(accent: string | undefined): Promise<void> {
@@ -2312,13 +2240,8 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('projectWindowTitle.setWindowAccent', () => openWindowAccentPicker()),
     vscode.commands.registerCommand('projectWindowTitle.resetWindowAccent', () => resetWindowAccentColor()),
     vscode.commands.registerCommand('projectWindowTitle.rebuildState', () => tracker.rebuildHarbormasterState()),
-    vscode.commands.registerCommand('projectWindowTitle.addGlobalTag', () => tracker.addGlobalTag()),
-    vscode.commands.registerCommand('projectWindowTitle.removeGlobalTag', () => tracker.removeGlobalTag()),
-    vscode.commands.registerCommand('projectWindowTitle.assignTag', () => tracker.assignTagToProject()),
-    vscode.commands.registerCommand('projectWindowTitle.removeProjectTag', () => tracker.removeProjectTag()),
     vscode.commands.registerCommand('projectWindowTitle.addProjectToCatalog', () => tracker.addProjectToCatalog()),
     vscode.commands.registerCommand('projectWindowTitle.openProjectFromCatalog', () => tracker.openProjectFromCatalog()),
-    vscode.commands.registerCommand('projectWindowTitle.openGlobalTags', () => openGlobalTagMenu()),
     vscode.commands.registerCommand('projectWindowTitle.createHarbormasterProject', () => createHarbormasterProject()),
     vscode.commands.registerCommand('projectWindowTitle.saveColorPreset', () => tracker.saveColorPreset()),
     vscode.commands.registerCommand('projectWindowTitle.applyColorPreset', () => tracker.applyColorPreset()),
@@ -2522,10 +2445,6 @@ async function createProjectConfig(): Promise<void> {
 async function openWindowAccentPicker(): Promise<void> {
   await vscode.commands.executeCommand('workbench.view.extension.harbormaster');
   appViewProviderSingleton?.setMode('accent');
-}
-
-async function openGlobalTagMenu(): Promise<void> {
-  void vscode.window.showInformationMessage('Harbormaster: Global tag menu coming soon.');
 }
 
 async function createHarbormasterProject(): Promise<void> {
@@ -3223,10 +3142,6 @@ async function showMenu(): Promise<void> {
     { label: 'Rebuild project state', description: 'Create missing Harbormaster files and migrate legacy metadata' },
     { label: 'Add project to catalog', description: 'Save current project entry to the catalog' },
     { label: 'Open project from catalog', description: 'Pick and open a saved Harbormaster project' },
-    { label: 'Add global tag', description: 'Create a tag available to all projects' },
-    { label: 'Assign tag to project', description: 'Attach an existing tag to this project' },
-    { label: 'Remove tag from project', description: 'Detach an assigned tag' },
-    { label: 'Remove global tag', description: 'Delete a tag from the registry (removes from projects)' },
   ];
 
   const selection = await vscode.window.showQuickPick(items, {
@@ -3270,26 +3185,6 @@ async function showMenu(): Promise<void> {
 
   if (selection.label === 'Open project from catalog') {
     await trackerSingleton.openProjectFromCatalog();
-    return;
-  }
-
-  if (selection.label === 'Add global tag') {
-    await trackerSingleton.addGlobalTag();
-    return;
-  }
-
-  if (selection.label === 'Assign tag to project') {
-    await trackerSingleton.assignTagToProject();
-    return;
-  }
-
-  if (selection.label === 'Remove tag from project') {
-    await trackerSingleton.removeProjectTag();
-    return;
-  }
-
-  if (selection.label === 'Remove global tag') {
-    await trackerSingleton.removeGlobalTag();
     return;
   }
 }
