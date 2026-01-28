@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 
 import { AccentGroupDefinition, AccentSectionDefinition, getAccentPickerHtml } from './accentPicker';
+import { renderViewShell } from './viewShell';
 
 type AppCommand =
   | 'projectWindowTitle.createConfig'
@@ -73,7 +74,7 @@ export type AppViewTracker = {
 
 export class HarbormasterAppViewProvider implements vscode.WebviewViewProvider {
   private view?: vscode.WebviewView;
-  private mode: 'home' | 'accent' = 'home';
+  private mode: 'home' | 'accent' | 'tags' = 'home';
 
   constructor(
     private readonly tracker: AppViewTracker,
@@ -117,6 +118,10 @@ export class HarbormasterAppViewProvider implements vscode.WebviewViewProvider {
           this.setMode('accent');
           return;
         }
+        if (message.command === 'projectWindowTitle.openGlobalTags') {
+          this.setMode('tags');
+          return;
+        }
         await vscode.commands.executeCommand(message.command);
       }
       if (this.mode === 'accent') {
@@ -129,7 +134,7 @@ export class HarbormasterAppViewProvider implements vscode.WebviewViewProvider {
     void this.refresh();
   }
 
-  setMode(mode: 'home' | 'accent'): void {
+  setMode(mode: 'home' | 'accent' | 'tags'): void {
     if (this.mode === mode) {
       void this.reveal();
       return;
@@ -154,6 +159,10 @@ export class HarbormasterAppViewProvider implements vscode.WebviewViewProvider {
     const stylesheetUri = this.getStylesheetUri(this.view.webview);
     if (this.mode === 'accent') {
       await this.renderAccentView(settings, toolkitUri, stylesheetUri);
+      return;
+    }
+    if (this.mode === 'tags') {
+      await this.renderTagView(settings, toolkitUri, stylesheetUri);
       return;
     }
     const info = await this.tracker.getCurrentProjectInfo(settings);
@@ -235,6 +244,23 @@ export class HarbormasterAppViewProvider implements vscode.WebviewViewProvider {
         stylesheetUri,
       }
     );
+  }
+
+  private async renderTagView(settings: unknown, toolkitUri: string, stylesheetUri: string): Promise<void> {
+    const info = await this.tracker.getCurrentProjectInfo(settings);
+    const themeCss = buildHarbormasterThemeCss(
+      this.normalizeAccentColor(info?.windowAccent),
+      this.normalizeAccentSections(info?.windowAccentSections),
+      this.normalizeAccentGroups(info?.windowAccentGroups),
+      this.normalizeAccentSectionInherit(info?.windowAccentSectionsInherit),
+      this.normalizeAccentGroupInherit(info?.windowAccentGroupsInherit),
+      this.normalizeAccentOverrides(info?.windowAccentOverrides)
+    );
+    this.view!.webview.html = getTagMenuHtml({
+      themeCss,
+      toolkitUri,
+      stylesheetUri,
+    });
   }
 
   private async handleAccentMessage(message: any): Promise<void> {
@@ -394,6 +420,12 @@ type AppState = {
   stylesheetUri: string;
 };
 
+type TagMenuState = {
+  themeCss: string;
+  toolkitUri: string;
+  stylesheetUri: string;
+};
+
 function getAppHtml(state: AppState): string {
   const name = state.name ?? 'Headless workspace';
   const version = state.version ?? 'No version set';
@@ -447,27 +479,7 @@ function getAppHtml(state: AppState): string {
     },
   ];
 
-  return `<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <script type="module">
-      import {
-        provideVSCodeDesignSystem,
-        vsCodeBadge,
-        vsCodeButton,
-        vsCodeTag,
-      } from "${state.toolkitUri}";
-
-      provideVSCodeDesignSystem().register(vsCodeBadge(), vsCodeButton(), vsCodeTag());
-    </script>
-    <link rel="stylesheet" href="${state.stylesheetUri}" />
-    <style>
-      ${state.themeCss}
-    </style>
-  </head>
-  <body>
+  const contentHtml = `
     <div class="stack">
       <div class="header">
         <div class="title-row">
@@ -538,6 +550,30 @@ function getAppHtml(state: AppState): string {
         : ''
     }
     <div class="footer">Harbormaster app view</div>
+  `;
+
+  return `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script type="module">
+      import {
+        provideVSCodeDesignSystem,
+        vsCodeBadge,
+        vsCodeButton,
+        vsCodeTag,
+      } from "${state.toolkitUri}";
+
+      provideVSCodeDesignSystem().register(vsCodeBadge(), vsCodeButton(), vsCodeTag());
+    </script>
+    <link rel="stylesheet" href="${state.stylesheetUri}" />
+    <style>
+      ${state.themeCss}
+    </style>
+  </head>
+  <body>
+    ${renderViewShell(contentHtml)}
     <script>
       const vscode = acquireVsCodeApi();
       document.querySelectorAll('[data-command]').forEach((button) => {
@@ -548,6 +584,53 @@ function getAppHtml(state: AppState): string {
           }
         });
       });
+    </script>
+  </body>
+</html>`;
+}
+
+function getTagMenuHtml(state: TagMenuState): string {
+  const backButtonHtml =
+    '<div class="view-top"><vscode-button id="backButton" appearance="secondary">Back</vscode-button></div>';
+  const contentHtml = `
+    <div class="stack">
+      <div class="section">
+        <div class="section-header">
+          <div class="section-heading">Global tags</div>
+        </div>
+        <div class="muted">Tag management UI is coming next.</div>
+      </div>
+    </div>
+  `;
+
+  return `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script type="module">
+      import {
+        provideVSCodeDesignSystem,
+        vsCodeButton,
+      } from "${state.toolkitUri}";
+
+      provideVSCodeDesignSystem().register(vsCodeButton());
+    </script>
+    <link rel="stylesheet" href="${state.stylesheetUri}" />
+    <style>
+      ${state.themeCss}
+    </style>
+  </head>
+  <body>
+    ${renderViewShell(contentHtml, { backButtonHtml })}
+    <script>
+      const vscode = acquireVsCodeApi();
+      const backButton = document.getElementById('backButton');
+      if (backButton) {
+        backButton.addEventListener('click', () => {
+          vscode.postMessage({ type: 'navigateHome' });
+        });
+      }
     </script>
   </body>
 </html>`;

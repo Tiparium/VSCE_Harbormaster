@@ -1,3 +1,5 @@
+import { renderViewShell } from './viewShell';
+
 export type AccentSectionDefinition = {
   id: string;
   label: string;
@@ -57,6 +59,52 @@ export function getAccentPickerHtml(
   const highlightBoost =
     typeof options.highlightBoost === 'number' ? Math.max(0, Math.min(0.4, options.highlightBoost)) : 0.15;
   const highlightBoostPercent = Math.round(highlightBoost * 100);
+  const backButtonHtml = showBackButton
+    ? `<div class="view-top"><vscode-button id="backButton" appearance="secondary">${escapeHtml(backLabel)}</vscode-button></div>`
+    : '';
+  const contentHtml = `
+      <div class="stack">
+        <div class="section-block quick-actions">
+          <div class="section-title">Quick actions</div>
+          <div class="quick-actions-grid">
+            <vscode-button id="clearAll" appearance="secondary">Clear all</vscode-button>
+            <vscode-button id="clearAllButBase" appearance="secondary">Clear all but base</vscode-button>
+            <vscode-button id="swapBackup" appearance="secondary">Swap backup</vscode-button>
+          </div>
+          <div class="quick-actions-presets">
+            <vscode-button id="savePreset" appearance="secondary">Save preset</vscode-button>
+            <vscode-button id="applyPreset" appearance="secondary">Apply preset</vscode-button>
+          </div>
+          <div class="boost-row">
+            <label for="highlightBoost">Highlight boost</label>
+            <input
+              id="highlightBoost"
+              type="range"
+              min="0"
+              max="40"
+              step="1"
+              value="${highlightBoostPercent}"
+            />
+            <div id="highlightBoostValue">${highlightBoostPercent}%</div>
+          </div>
+        </div>
+        <div class="section-block">
+          <div class="row">
+            <div class="label">Base accent</div>
+            <div class="controls">
+              <input id="baseWheel" type="color" value="${baseColor}" />
+              <vscode-text-field id="baseInput" value="${baseColor}"></vscode-text-field>
+            </div>
+            <div class="actions">
+              <div id="baseHistory"></div>
+              <vscode-button id="baseApply" appearance="secondary">Apply</vscode-button>
+              <vscode-button id="baseClear" appearance="secondary">Clear base</vscode-button>
+            </div>
+          </div>
+        </div>
+        <div id="sections"></div>
+      </div>
+  `;
   return `<!DOCTYPE html>
 <html lang="en">
   <head>
@@ -86,48 +134,7 @@ export function getAccentPickerHtml(
     </style>
   </head>
   <body>
-    <div class="stack">
-      ${showBackButton ? `<div class="topbar"><vscode-button id="backButton" appearance="secondary">${escapeHtml(backLabel)}</vscode-button></div>` : ''}
-      <div class="section-block quick-actions">
-        <div class="section-title">Quick actions</div>
-        <div class="quick-actions-grid">
-          <vscode-button id="clearAll" appearance="secondary">Clear all</vscode-button>
-          <vscode-button id="clearAllButBase" appearance="secondary">Clear all but base</vscode-button>
-          <vscode-button id="swapBackup" appearance="secondary">Swap backup</vscode-button>
-        </div>
-        <div class="quick-actions-presets">
-          <vscode-button id="savePreset" appearance="secondary">Save preset</vscode-button>
-          <vscode-button id="applyPreset" appearance="secondary">Apply preset</vscode-button>
-        </div>
-        <div class="boost-row">
-          <label for="highlightBoost">Highlight boost</label>
-          <input
-            id="highlightBoost"
-            type="range"
-            min="0"
-            max="40"
-            step="1"
-            value="${highlightBoostPercent}"
-          />
-          <div id="highlightBoostValue">${highlightBoostPercent}%</div>
-        </div>
-      </div>
-      <div class="section-block">
-        <div class="row">
-          <div class="label">Base accent</div>
-          <div class="controls">
-            <input id="baseWheel" type="color" value="${baseColor}" />
-            <vscode-text-field id="baseInput" value="${baseColor}"></vscode-text-field>
-          </div>
-          <div class="actions">
-            <div id="baseHistory"></div>
-            <vscode-button id="baseApply" appearance="secondary">Apply</vscode-button>
-            <vscode-button id="baseClear" appearance="secondary">Clear base</vscode-button>
-          </div>
-        </div>
-      </div>
-      <div id="sections"></div>
-    </div>
+    ${renderViewShell(contentHtml, { backButtonHtml })}
     <script>
       const vscode = acquireVsCodeApi();
       const reportError = (error) => {

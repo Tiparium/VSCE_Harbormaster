@@ -11,6 +11,23 @@ h2,
 h3 {
   margin: 0;
 }
+.view-shell {
+  display: grid;
+  gap: 12px;
+}
+.view-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.view-canvas {
+  display: grid;
+  gap: 16px;
+}
+.muted {
+  opacity: 0.7;
+  font-size: 0.9rem;
+}
 
 /* App view */
 .stack {
