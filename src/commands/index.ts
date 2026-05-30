@@ -117,11 +117,14 @@ async function openProjectFromCatalog(catalog: CatalogStore): Promise<void> {
     return;
   }
 
-  // Validate all paths in parallel before opening the picker.
+  // Validate all entries in parallel before opening the picker.
+  // A project is stale if either its folder or its Harbormaster config is missing.
   const staleIds = new Set<string>();
   await Promise.all(
     projects.map(async (p) => {
-      if (!(await fileExists(vscode.Uri.file(p.path)))) {
+      const folderUri = vscode.Uri.file(p.path);
+      const configUri = vscode.Uri.joinPath(folderUri, '.harbormaster/.meta/project.json');
+      if (!(await fileExists(folderUri)) || !(await fileExists(configUri))) {
         staleIds.add(p.id);
       }
     })
