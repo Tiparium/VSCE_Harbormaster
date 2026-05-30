@@ -9,3 +9,4 @@ agents.md
 .project.json
 .harbormaster/
 .DS_Store
+test/debug_instance/
