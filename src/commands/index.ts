@@ -107,6 +107,7 @@ interface CatalogPickItem extends vscode.QuickPickItem {
   project?: CatalogProject;
   isSortOption?: boolean;
   sortKey?: string;
+  stale?: boolean;
 }
 
 async function openProjectFromCatalog(catalog: CatalogStore): Promise<void> {
@@ -115,6 +116,16 @@ async function openProjectFromCatalog(catalog: CatalogStore): Promise<void> {
     void vscode.window.showInformationMessage('Harbormaster: No projects in catalog. Create one first.');
     return;
   }
+
+  // Validate all paths in parallel before opening the picker.
+  const staleIds = new Set<string>();
+  await Promise.all(
+    projects.map(async (p) => {
+      if (!(await fileExists(vscode.Uri.file(p.path)))) {
+        staleIds.add(p.id);
+      }
+    })
+  );
 
   const openHereButton: vscode.QuickInputButton = {
     iconPath: new vscode.ThemeIcon('window'),
@@ -140,21 +151,27 @@ async function openProjectFromCatalog(catalog: CatalogStore): Promise<void> {
   quickPick.title = 'Open Harbormaster project';
   quickPick.placeholder = 'Enter to open here · Use buttons to choose window';
 
-  function buildItems(sortKey: typeof currentSort) {
+  function buildItems(sortKey: typeof currentSort): CatalogPickItem[] {
     const sorted = catalog.sort(projects, sortKey);
-    const sortItems = sortOptions.map((o) => ({
+    const sortItems: CatalogPickItem[] = sortOptions.map((o) => ({
       label: `${o.sort === sortKey ? '$(check) ' : ''}${o.label}`,
       description: '',
       isSortOption: true,
       sortKey: o.sort,
     }));
-    const projectItems = sorted.map((p) => ({
-      label: p.name,
-      description: p.tags.length ? p.tags.join(', ') : undefined,
-      detail: `$(folder) ${p.path}`,
-      project: p,
-      buttons: [openHereButton, openNewButton],
-    }));
+    const projectItems: CatalogPickItem[] = sorted.map((p) => {
+      const stale = staleIds.has(p.id);
+      return {
+        label: stale ? `$(warning) ${p.name}` : p.name,
+        description: stale
+          ? 'Path not found'
+          : (p.tags.length ? p.tags.join(', ') : undefined),
+        detail: `$(folder) ${p.path}`,
+        project: p,
+        stale,
+        buttons: stale ? [] : [openHereButton, openNewButton],
+      };
+    });
     return [
       { label: 'Sort by', kind: vscode.QuickPickItemKind.Separator },
       ...sortItems,
@@ -167,8 +184,7 @@ async function openProjectFromCatalog(catalog: CatalogStore): Promise<void> {
 
   quickPick.onDidTriggerItemButton(async (e) => {
     if (e.item.isSortOption || !e.item.project) return;
-    const forceNew = e.button === openNewButton;
-    await openProject(catalog, e.item.project, forceNew);
+    await openProject(catalog, e.item.project, e.button === openNewButton);
     quickPick.hide();
   });
 
@@ -181,6 +197,11 @@ async function openProjectFromCatalog(catalog: CatalogStore): Promise<void> {
       return;
     }
     if (!selection.project) return;
+    if (selection.stale) {
+      quickPick.hide();
+      await recoverStaleProject(catalog, selection.project);
+      return;
+    }
     await openProject(catalog, selection.project, false);
     quickPick.hide();
   });
@@ -188,37 +209,58 @@ async function openProjectFromCatalog(catalog: CatalogStore): Promise<void> {
   quickPick.show();
 }
 
-async function openProject(
-  catalog: CatalogStore,
-  project: { id: string; name: string; path: string },
-  forceNewWindow: boolean
-): Promise<void> {
-  const pathUri = vscode.Uri.file(project.path);
-  const pathExists = await fileExists(pathUri);
+async function recoverStaleProject(catalog: CatalogStore, project: CatalogProject): Promise<void> {
+  type RecoveryAction = 'remap' | 'remove' | 'cancel';
+  const items: (vscode.QuickPickItem & { action: RecoveryAction })[] = [
+    {
+      label: '$(edit) Remap',
+      description: 'Select the new folder location and update the catalog entry',
+      action: 'remap',
+    },
+    {
+      label: '$(trash) Remove from catalog',
+      description: 'Delete this entry permanently',
+      action: 'remove',
+    },
+    {
+      label: '$(close) Cancel',
+      description: 'Leave it for now',
+      action: 'cancel',
+    },
+  ];
 
-  if (!pathExists) {
-    const choice = await vscode.window.showWarningMessage<vscode.MessageItem>(
-      `Project path not found:\n${project.path}`,
-      { modal: true },
-      { title: 'Select new location' },
-      { title: 'Remove from catalog' },
-    );
-    if (!choice) return;
-    if (choice.title === 'Remove from catalog') {
-      await catalog.remove(project.id);
-      return;
-    }
-    const picked = await vscode.window.showOpenDialog({
-      canSelectFiles: false, canSelectFolders: true, canSelectMany: false, openLabel: 'Use folder',
-    });
-    if (!picked || picked.length === 0) return;
-    await catalog.updatePath(project.id, picked[0].fsPath);
-    await vscode.commands.executeCommand('vscode.openFolder', picked[0], { forceNewWindow });
-    await catalog.recordOpened(project.id);
+  const pick = await vscode.window.showQuickPick(items, {
+    title: `Project not found: ${project.name}`,
+    placeHolder: project.path,
+  });
+  if (!pick || pick.action === 'cancel') return;
+
+  if (pick.action === 'remove') {
+    await catalog.remove(project.id);
+    void vscode.window.showInformationMessage(`Harbormaster: removed "${project.name}" from catalog.`);
     return;
   }
 
-  await vscode.commands.executeCommand('vscode.openFolder', pathUri, { forceNewWindow });
+  if (pick.action === 'remap') {
+    const picked = await vscode.window.showOpenDialog({
+      canSelectFiles: false,
+      canSelectFolders: true,
+      canSelectMany: false,
+      openLabel: 'Use this folder',
+    });
+    if (!picked || picked.length === 0) return;
+    await catalog.updatePath(project.id, picked[0].fsPath);
+    await vscode.commands.executeCommand('vscode.openFolder', picked[0], { forceNewWindow: false });
+    await catalog.recordOpened(project.id);
+  }
+}
+
+async function openProject(
+  catalog: CatalogStore,
+  project: CatalogProject,
+  forceNewWindow: boolean
+): Promise<void> {
+  await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(project.path), { forceNewWindow });
   await catalog.recordOpened(project.id);
 }
 
