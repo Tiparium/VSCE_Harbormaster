@@ -19,7 +19,7 @@ export function createMcpServer(config: HarbormasterMcpConfig): McpServer {
   });
 
   registerCatalogTools(server, config.catalog);
-  registerProjectTools(server, config.workspacePath);
+  registerProjectTools(server, config.workspacePath, config.branches);
   registerBranchTools(server, config.branches, config.workspacePath);
 
   return server;

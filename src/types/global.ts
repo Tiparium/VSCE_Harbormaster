@@ -33,7 +33,10 @@ export type Branch = {
   directives: string;
   createdAt: string;
   updatedAt: string;
-  activatedBy: string[];
+  /** Number of projects currently using this branch. */
+  score: number;
+  /** Whether this branch ships with Harbormaster and cannot be deleted. */
+  canonical?: boolean;
 };
 
 export type GlobalData = {

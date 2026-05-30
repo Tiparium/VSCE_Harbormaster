@@ -18,6 +18,8 @@ export type ProjectConfig = {
   version_prerelease: string;
   tags: string[];
   accent?: ProjectAccent;
+  /** IDs of branches active for this project. */
+  activeBranches: string[];
 };
 
 export type ProjectAccent = {

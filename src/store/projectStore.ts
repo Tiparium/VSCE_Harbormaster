@@ -62,6 +62,7 @@ export class ProjectStore {
       version_patch: 0,
       version_prerelease: '',
       tags: [],
+      activeBranches: [],
     };
   }
 
@@ -84,6 +85,9 @@ function normalizeProjectConfig(raw: Record<string, unknown>): ProjectConfig {
     version_patch: coerceInt(raw.version_patch) ?? 0,
     version_prerelease: coerceString(raw.version_prerelease) ?? '',
     tags: Array.isArray(raw.tags) ? raw.tags.filter((t): t is string => typeof t === 'string') : [],
+    activeBranches: Array.isArray(raw.activeBranches)
+      ? raw.activeBranches.filter((b): b is string => typeof b === 'string')
+      : [],
     ...(accent ? { accent } : {}),
   };
 }

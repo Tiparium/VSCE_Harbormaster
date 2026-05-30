@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import type { AiTool } from '../types/global';
 import { AI_TOOL_ENTRYPOINTS } from '../types/global';
 import { ProjectStore } from '../store/projectStore';
+import { CANONICAL_BRANCH_IDS } from '../store/canonicalBranches';
 
 const DIRECTIVES_PATH = '.harbormaster/.context/DIRECTIVES.md';
 const SHELF_PATH = '.harbormaster/.context/SHELF.md';
@@ -9,8 +10,16 @@ const SHELF_PATH = '.harbormaster/.context/SHELF.md';
 const DIRECTIVES_TEMPLATE = `# Directives
 
 ## On session start
-Read \`.harbormaster/.context/DIRECTIVES.md\` (this file) and \`.harbormaster/.context/SHELF.md\` before doing any work.
-If the Harbormaster MCP server is configured, you may call \`harbormaster_context_get()\` instead to load both in one call.
+Read this file and \`.harbormaster/.context/SHELF.md\` before doing any work.
+If the Harbormaster MCP server is configured, \`harbormaster_full_context_get()\` loads both plus your active branch list in one call.
+
+## Branch behaviors
+This project uses Harbormaster branches — modular behavior directives for specific workflows.
+Branches require the Harbormaster MCP server. If MCP is not configured, branch behaviors are not available.
+
+- To see which branches are active: \`project_branches_list()\`
+- To get the full instructions for a branch before performing that workflow: \`branch_get(id)\`
+- Do not load all branch content at session start — fetch a branch only when you need it.
 
 ## Operating rules
 - Add project-specific AI operating rules here.
@@ -56,7 +65,9 @@ export class ProjectScaffold {
     // Create a project store scoped to the target folder
     const store = new ProjectStore(folderUri);
     if (!(await store.exists())) {
-      await store.write(store.createDefault(name));
+      const config = store.createDefault(name);
+      config.activeBranches = [...CANONICAL_BRANCH_IDS];
+      await store.write(config);
       created.push(store.configUri.fsPath);
     }
 

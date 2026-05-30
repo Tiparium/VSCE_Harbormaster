@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 
 import { createGlobalStore } from './store/globalStore';
+import { CANONICAL_BRANCHES } from './store/canonicalBranches';
 import { ProjectStore } from './store/projectStore';
 import { CatalogStore } from './store/catalog';
 import { SettingsStore } from './store/settings';
@@ -46,6 +47,7 @@ export function activate(context: vscode.ExtensionContext): void {
   registerCommands(context, { catalog, settings, projectStore, scaffold, sidebar });
 
   // ── Startup work ──────────────────────────────────────────────────────────
+  void branches.seed(CANONICAL_BRANCHES);
   void onActivate(folder, catalog, settings, scaffold, health, sidebar);
 }
 
