@@ -1,5 +1,5 @@
 import type { Branch } from '../types/global';
-import type { GlobalStore } from './globalStore';
+import type { GlobalStoreApi as GlobalStore } from './globalStore';
 
 export type BranchSummary = Pick<Branch, 'id' | 'name' | 'description' | 'score' | 'canonical'>;
 

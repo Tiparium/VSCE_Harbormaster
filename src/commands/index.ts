@@ -6,6 +6,7 @@ import type { SettingsStore } from '../store/settings';
 import type { ProjectStore } from '../store/projectStore';
 import type { ProjectScaffold } from '../project/scaffold';
 import type { SidebarProvider } from '../ui/sidebar/sidebarProvider';
+import type { SetupManager } from '../setup/setupManager';
 import { getPrimaryFolder } from '../utils/fileUtils';
 import { isGitRepo, snapshotHarbormaster } from '../utils/gitUtils';
 import { AI_TOOL_ENTRYPOINTS } from '../types/global';
@@ -17,13 +18,14 @@ export type CommandDeps = {
   projectStore: ProjectStore;
   scaffold: ProjectScaffold;
   sidebar?: SidebarProvider;
+  setupManager?: SetupManager;
 };
 
 export function registerCommands(
   context: vscode.ExtensionContext,
   deps: CommandDeps
 ): void {
-  const { catalog, settings, projectStore, scaffold, sidebar } = deps;
+  const { catalog, settings, projectStore, scaffold, sidebar, setupManager } = deps;
 
   context.subscriptions.push(
     vscode.commands.registerCommand('harbormaster.openCatalog', async () => {
@@ -76,6 +78,18 @@ export function registerCommands(
 
     vscode.commands.registerCommand('harbormaster.refresh', () => {
       sidebar?.refresh();
+    }),
+
+    vscode.commands.registerCommand('harbormaster.runSetup', async () => {
+      if (setupManager) await setupManager.run();
+    }),
+
+    vscode.commands.registerCommand('harbormaster.manageAiTools', async () => {
+      if (setupManager) await setupManager.reconfigureAiTools();
+    }),
+
+    vscode.commands.registerCommand('harbormaster.manageMcp', async () => {
+      if (setupManager) await setupManager.reconfigureMcp();
     }),
 
     vscode.commands.registerCommand('harbormaster.snapshotState', async () => {

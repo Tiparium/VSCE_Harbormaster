@@ -72,6 +72,21 @@
         "command": "harbormaster.refresh",
         "title": "Harbormaster: Refresh",
         "category": "Harbormaster"
+      },
+      {
+        "command": "harbormaster.runSetup",
+        "title": "Harbormaster: Run setup",
+        "category": "Harbormaster"
+      },
+      {
+        "command": "harbormaster.manageAiTools",
+        "title": "Harbormaster: Manage AI tools",
+        "category": "Harbormaster"
+      },
+      {
+        "command": "harbormaster.manageMcp",
+        "title": "Harbormaster: Manage MCP registration",
+        "category": "Harbormaster"
       }
     ],
     "configuration": {

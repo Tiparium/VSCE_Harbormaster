@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import type { CatalogStore } from '../../store/catalog';
 import type { ProjectStore } from '../../store/projectStore';
+import type { SettingsStore } from '../../store/settings';
 import type { ExtensionMessage, SidebarData, WebviewMessage } from '../../webview/types';
 import { shell } from './shell';
 
@@ -10,7 +11,8 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   constructor(
     private readonly extensionUri: vscode.Uri,
     private readonly catalog: CatalogStore,
-    private readonly projectStore: ProjectStore
+    private readonly projectStore: ProjectStore,
+    private readonly settings: SettingsStore
   ) {}
 
   resolveWebviewView(view: vscode.WebviewView): void {
@@ -41,11 +43,14 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   private async sendData(): Promise<void> {
     if (!this.view) return;
     const config = await this.projectStore.read();
+    const settings = await this.settings.read();
     const data: SidebarData = {
       projectName: config?.project_name ?? '',
       version: deriveVersion(config),
       tags: config?.tags ?? [],
       isHarbormasterProject: config !== null,
+      activeAiTools: settings.activeAiTools,
+      registeredMcpTools: settings.registeredMcpTools,
     };
     const msg: ExtensionMessage = { type: 'update', data };
     await this.view.webview.postMessage(msg);

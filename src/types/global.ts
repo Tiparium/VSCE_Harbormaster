@@ -14,6 +14,7 @@ export const AI_TOOL_ENTRYPOINTS: Record<AiTool, string> = {
 
 export type GlobalSettings = {
   activeAiTools: AiTool[];
+  registeredMcpTools: AiTool[];
   projectCreateDefaultFolder: string;
 };
 
@@ -56,6 +57,7 @@ export function defaultGlobalData(): GlobalData {
     colorPresets: [],
     settings: {
       activeAiTools: [],
+      registeredMcpTools: [],
       projectCreateDefaultFolder: '',
     },
     branches: [],

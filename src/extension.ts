@@ -11,6 +11,7 @@ import { TitleController } from './title/titleController';
 import { ProjectScaffold } from './project/scaffold';
 import { HealthChecker } from './project/health';
 import { SidebarProvider } from './ui/sidebar/sidebarProvider';
+import { SetupManager } from './setup/setupManager';
 import { registerCommands } from './commands/index';
 import { getPrimaryFolder } from './utils/fileUtils';
 
@@ -30,12 +31,14 @@ export function activate(context: vscode.ExtensionContext): void {
   const scaffold = new ProjectScaffold();
   const health = new HealthChecker(projectStore);
   const titleController = new TitleController(projectStore, accentManager);
+  const setupManager = new SetupManager(settings, context.extensionUri.fsPath);
 
   // ── UI ────────────────────────────────────────────────────────────────────
   const sidebar = new SidebarProvider(
     context.extensionUri,
     catalog,
-    projectStore
+    projectStore,
+    settings
   );
 
   context.subscriptions.push(
@@ -44,11 +47,11 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   // ── Commands ──────────────────────────────────────────────────────────────
-  registerCommands(context, { catalog, settings, projectStore, scaffold, sidebar });
+  registerCommands(context, { catalog, settings, projectStore, scaffold, sidebar, setupManager });
 
   // ── Startup work ──────────────────────────────────────────────────────────
   void branches.seed(CANONICAL_BRANCHES);
-  void onActivate(folder, catalog, settings, scaffold, health, sidebar);
+  void onActivate(folder, catalog, settings, scaffold, health, setupManager, sidebar);
 }
 
 async function onActivate(
@@ -57,11 +60,27 @@ async function onActivate(
   settings: SettingsStore,
   scaffold: ProjectScaffold,
   health: HealthChecker,
+  setupManager: SetupManager,
   sidebar: SidebarProvider
 ): Promise<void> {
-  if (!folder) return;
+  // ── First-time / pending setup ────────────────────────────────────────────
+  if (await setupManager.hasPendingSteps()) {
+    const answer = await vscode.window.showInformationMessage(
+      'Harbormaster needs a quick setup. Configure your AI tools and MCP server?',
+      'Configure',
+      'Later'
+    );
+    if (answer === 'Configure') {
+      await setupManager.run();
+    }
+  }
 
-  // Register project in catalog
+  if (!folder) {
+    sidebar.refresh();
+    return;
+  }
+
+  // ── Register project in catalog ───────────────────────────────────────────
   const projectStore = new ProjectStore(folder.uri);
   const config = await projectStore.read();
   if (config) {
@@ -73,15 +92,13 @@ async function onActivate(
     await catalog.recordOpened(
       (await catalog.findByPath(folder.uri.fsPath))?.id ?? ''
     );
-  }
 
-  // Ensure entrypoint files for any newly configured AI tools
-  if (config) {
+    // Ensure entrypoint files for any newly configured AI tools
     const activeTools = (await settings.read()).activeAiTools;
     await scaffold.ensureEntrypoints(folder.uri, config.project_name || folder.name, activeTools);
   }
 
-  // Health check — show diagnostics if needed
+  // ── Health check ──────────────────────────────────────────────────────────
   const snapshot = await health.check(folder.uri);
   if (!health.isHealthy(snapshot)) {
     const msg = [

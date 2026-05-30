@@ -1,5 +1,5 @@
 import type { CatalogProject } from '../types/project';
-import type { GlobalStore } from './globalStore';
+import type { GlobalStoreApi as GlobalStore } from './globalStore';
 
 export type CatalogSortKey = 'lastEdited' | 'lastOpened' | 'created' | 'name' | 'tags';
 

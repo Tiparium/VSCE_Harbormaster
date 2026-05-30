@@ -2,6 +2,12 @@ import * as vscode from 'vscode';
 import type { GlobalData } from '../types/global';
 import { migrateGlobalData } from './migration';
 
+/** Minimal interface satisfied by both GlobalStore and the standalone NodeGlobalStore. */
+export interface GlobalStoreApi {
+  read(): Promise<GlobalData>;
+  write(data: GlobalData): Promise<void>;
+}
+
 const GLOBAL_FILE = 'harbormaster.global.json';
 const DEV_GLOBAL_FILE = 'harbormaster.global.dev.json';
 

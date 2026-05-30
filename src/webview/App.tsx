@@ -11,6 +11,8 @@ const DEFAULT_DATA: SidebarData = {
   version: '',
   tags: [],
   isHarbormasterProject: false,
+  activeAiTools: [],
+  registeredMcpTools: [],
 };
 
 export function App() {
@@ -28,6 +30,8 @@ export function App() {
     return () => window.removeEventListener('message', handleMessage);
   }, []);
 
+  const hasMcpGap = data.activeAiTools.some((t) => !data.registeredMcpTools.includes(t));
+
   return (
     <div className="hm-root">
       <Header
@@ -36,15 +40,15 @@ export function App() {
         tags={data.tags}
       />
       <SidebarCanvas>
+
+        {/* ── Project actions ───────────────────────────────────────────── */}
         <Section>
           {data.isHarbormasterProject ? (
-            // Harbormaster project: compact "+" beside a full-width Open
             <ButtonRow layout="compact-first">
               <ActionButton label="New Project" command="harbormaster.createProject" compact />
               <ActionButton label="Open Project" command="harbormaster.openCatalog" primary />
             </ButtonRow>
           ) : (
-            // Non-Harbormaster folder: equal split
             <ButtonRow layout="equal">
               <ActionButton label="New Project" command="harbormaster.createProject" primary />
               <ActionButton label="Open Project" command="harbormaster.openCatalog" primary />
@@ -52,6 +56,16 @@ export function App() {
           )}
           <ActionButton label="Color Settings" command="harbormaster.setAccent" />
         </Section>
+
+        {/* ── Settings ─────────────────────────────────────────────────── */}
+        <Section title="Settings">
+          <ActionButton label="Manage AI Tools" command="harbormaster.manageAiTools" />
+          <ActionButton
+            label={hasMcpGap ? 'MCP Registration ⚠' : 'MCP Registration'}
+            command="harbormaster.manageMcp"
+          />
+        </Section>
+
       </SidebarCanvas>
     </div>
   );
