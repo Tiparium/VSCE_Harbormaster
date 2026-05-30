@@ -26,9 +26,8 @@ export function registerCommands(
   const { catalog, settings, projectStore, scaffold, sidebar } = deps;
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('harbormaster.openCatalog', () => {
-      sidebar?.setView('catalog');
-      void vscode.commands.executeCommand('workbench.view.extension.harbormaster');
+    vscode.commands.registerCommand('harbormaster.openCatalog', async () => {
+      await openProjectFromCatalog(catalog);
     }),
 
     vscode.commands.registerCommand('harbormaster.createProject', async () => {
@@ -62,7 +61,6 @@ export function registerCommands(
     }),
 
     vscode.commands.registerCommand('harbormaster.setAccent', () => {
-      sidebar?.setView('accent');
       void vscode.commands.executeCommand('workbench.view.extension.harbormaster');
     }),
 
@@ -99,6 +97,133 @@ export function registerCommands(
       }
     })
   );
+}
+
+// ── Catalog picker ────────────────────────────────────────────────────────
+
+import type { CatalogProject } from '../types/project';
+
+interface CatalogPickItem extends vscode.QuickPickItem {
+  project?: CatalogProject;
+  isSortOption?: boolean;
+  sortKey?: string;
+}
+
+async function openProjectFromCatalog(catalog: CatalogStore): Promise<void> {
+  const projects = await catalog.list();
+  if (projects.length === 0) {
+    void vscode.window.showInformationMessage('Harbormaster: No projects in catalog. Create one first.');
+    return;
+  }
+
+  const openHereButton: vscode.QuickInputButton = {
+    iconPath: new vscode.ThemeIcon('window'),
+    tooltip: 'Open here',
+  };
+  const openNewButton: vscode.QuickInputButton = {
+    iconPath: new vscode.ThemeIcon('open-preview'),
+    tooltip: 'Open in new window',
+  };
+
+  const sortOptions = [
+    { label: 'Last edited', sort: 'lastEdited' as const },
+    { label: 'Last opened', sort: 'lastOpened' as const },
+    { label: 'Created', sort: 'created' as const },
+    { label: 'Name (A → Z)', sort: 'name' as const },
+  ];
+
+  let currentSort: import('../store/catalog').CatalogSortKey = 'lastEdited';
+
+  const quickPick = vscode.window.createQuickPick<CatalogPickItem>();
+  quickPick.matchOnDescription = true;
+  quickPick.matchOnDetail = true;
+  quickPick.title = 'Open Harbormaster project';
+  quickPick.placeholder = 'Enter to open here · Use buttons to choose window';
+
+  function buildItems(sortKey: typeof currentSort) {
+    const sorted = catalog.sort(projects, sortKey);
+    const sortItems = sortOptions.map((o) => ({
+      label: `${o.sort === sortKey ? '$(check) ' : ''}${o.label}`,
+      description: '',
+      isSortOption: true,
+      sortKey: o.sort,
+    }));
+    const projectItems = sorted.map((p) => ({
+      label: p.name,
+      description: p.tags.length ? p.tags.join(', ') : undefined,
+      detail: `$(folder) ${p.path}`,
+      project: p,
+      buttons: [openHereButton, openNewButton],
+    }));
+    return [
+      { label: 'Sort by', kind: vscode.QuickPickItemKind.Separator },
+      ...sortItems,
+      { label: 'Projects', kind: vscode.QuickPickItemKind.Separator },
+      ...projectItems,
+    ];
+  }
+
+  quickPick.items = buildItems(currentSort);
+
+  quickPick.onDidTriggerItemButton(async (e) => {
+    if (e.item.isSortOption || !e.item.project) return;
+    const forceNew = e.button === openNewButton;
+    await openProject(catalog, e.item.project, forceNew);
+    quickPick.hide();
+  });
+
+  quickPick.onDidAccept(async () => {
+    const selection = quickPick.selectedItems[0];
+    if (!selection) { quickPick.hide(); return; }
+    if (selection.isSortOption && selection.sortKey) {
+      currentSort = selection.sortKey as typeof currentSort;
+      quickPick.items = buildItems(currentSort);
+      return;
+    }
+    if (!selection.project) return;
+    await openProject(catalog, selection.project, false);
+    quickPick.hide();
+  });
+
+  quickPick.show();
+}
+
+async function openProject(
+  catalog: CatalogStore,
+  project: { id: string; name: string; path: string },
+  forceNewWindow: boolean
+): Promise<void> {
+  const pathUri = vscode.Uri.file(project.path);
+  const pathExists = await fileExists(pathUri);
+
+  if (!pathExists) {
+    const choice = await vscode.window.showWarningMessage<vscode.MessageItem>(
+      `Project path not found:\n${project.path}`,
+      { modal: true },
+      { title: 'Select new location' },
+      { title: 'Remove from catalog' },
+    );
+    if (!choice) return;
+    if (choice.title === 'Remove from catalog') {
+      await catalog.remove(project.id);
+      return;
+    }
+    const picked = await vscode.window.showOpenDialog({
+      canSelectFiles: false, canSelectFolders: true, canSelectMany: false, openLabel: 'Use folder',
+    });
+    if (!picked || picked.length === 0) return;
+    await catalog.updatePath(project.id, picked[0].fsPath);
+    await vscode.commands.executeCommand('vscode.openFolder', picked[0], { forceNewWindow });
+    await catalog.recordOpened(project.id);
+    return;
+  }
+
+  await vscode.commands.executeCommand('vscode.openFolder', pathUri, { forceNewWindow });
+  await catalog.recordOpened(project.id);
+}
+
+async function fileExists(uri: vscode.Uri): Promise<boolean> {
+  try { await vscode.workspace.fs.stat(uri); return true; } catch { return false; }
 }
 
 async function createProject(

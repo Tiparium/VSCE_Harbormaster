@@ -13,5 +13,5 @@
     "skipLibCheck": true
   },
   "include": ["src"],
-  "exclude": ["test", "vitest.config.ts"]
+  "exclude": ["src/webview", "test", "vitest.config.ts"]
 }

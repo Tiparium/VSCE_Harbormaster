@@ -34,9 +34,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const sidebar = new SidebarProvider(
     context.extensionUri,
     catalog,
-    projectStore,
-    accentManager,
-    settings
+    projectStore
   );
 
   context.subscriptions.push(

@@ -93,8 +93,12 @@
   "scripts": {
     "postinstall": "patch-package",
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p .",
-    "watch": "tsc -w -p .",
+    "compile": "npm run compile:ext && npm run compile:webview",
+    "compile:ext": "tsc -p tsconfig.json",
+    "compile:webview": "node scripts/build-webview.js",
+    "watch": "concurrently \"npm run watch:ext\" \"npm run watch:webview\"",
+    "watch:ext": "tsc -w -p tsconfig.json",
+    "watch:webview": "node scripts/build-webview.js --watch",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -102,16 +106,21 @@
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
     "@types/vscode": "^1.85.0",
     "@vitest/coverage-v8": "^3.2.3",
+    "concurrently": "^9.0.0",
+    "esbuild": "^0.25.0",
     "patch-package": "^6.5.1",
     "typescript": "^5.4.0",
     "vitest": "^3.2.3"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "@vscode/webview-ui-toolkit": "^1.4.0",
     "punycode": "^2.3.1",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
     "vsce": "^2.15.0"
   }
 }
