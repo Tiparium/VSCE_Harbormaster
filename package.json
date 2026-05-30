@@ -2,8 +2,8 @@
   "name": "harbormaster",
   "displayName": "Harbormaster",
   "icon": "resources/harbormaster.png",
-  "description": "Project-aware window titles with a lightweight project tracker and quick actions.",
-  "version": "2.4.0-alpha",
+  "description": "Project-aware window titles, accent colors, and AI context management.",
+  "version": "3.0.0-alpha",
   "publisher": "harbormaster",
   "repository": {
     "type": "git",
@@ -13,12 +13,8 @@
   "engines": {
     "vscode": "^1.85.0"
   },
-  "categories": [
-    "Other"
-  ],
-  "activationEvents": [
-    "onStartupFinished"
-  ],
+  "categories": ["Other"],
+  "activationEvents": ["onStartupFinished"],
   "main": "./out/extension.js",
   "contributes": {
     "viewsContainers": {
@@ -43,128 +39,53 @@
     },
     "commands": [
       {
-        "command": "projectWindowTitle.createConfig",
-        "title": "Harbormaster: Create project config",
+        "command": "harbormaster.openCatalog",
+        "title": "Harbormaster: Open project catalog",
         "category": "Harbormaster"
       },
       {
-        "command": "projectWindowTitle.openConfig",
+        "command": "harbormaster.createProject",
+        "title": "Harbormaster: Create Harbormaster project",
+        "category": "Harbormaster"
+      },
+      {
+        "command": "harbormaster.openConfig",
         "title": "Harbormaster: Open project config",
         "category": "Harbormaster"
       },
       {
-        "command": "projectWindowTitle.showMenu",
-        "title": "Harbormaster: Menu",
-        "category": "Harbormaster"
-      },
-      {
-        "command": "projectWindowTitle.refresh",
-        "title": "Harbormaster: Refresh window title",
-        "category": "Harbormaster"
-      },
-      {
-        "command": "projectWindowTitle.setWindowAccent",
-        "title": "Harbormaster: Color settings",
-        "category": "Harbormaster"
-      },
-      {
-        "command": "projectWindowTitle.resetWindowAccent",
-        "title": "Harbormaster: Clear color settings",
-        "category": "Harbormaster"
-      },
-      {
-        "command": "projectWindowTitle.rebuildState",
+        "command": "harbormaster.rebuildState",
         "title": "Harbormaster: Rebuild project state",
         "category": "Harbormaster"
       },
       {
-        "command": "projectWindowTitle.addProjectToCatalog",
-        "title": "Harbormaster: Add current project to catalog",
+        "command": "harbormaster.setAccent",
+        "title": "Harbormaster: Color settings",
         "category": "Harbormaster"
       },
       {
-        "command": "projectWindowTitle.openProjectFromCatalog",
-        "title": "Harbormaster: Open project from catalog",
+        "command": "harbormaster.clearAccent",
+        "title": "Harbormaster: Clear color settings",
         "category": "Harbormaster"
       },
       {
-        "command": "projectWindowTitle.createHarbormasterProject",
-        "title": "Harbormaster: Create Harbormaster project",
+        "command": "harbormaster.refresh",
+        "title": "Harbormaster: Refresh",
         "category": "Harbormaster"
       }
     ],
     "configuration": {
-      "title": "Project Window Title",
+      "title": "Harbormaster",
       "properties": {
-        "projectWindowTitle.configFile": {
+        "harbormaster.projectConfigFile": {
           "type": "string",
           "default": ".harbormaster/.meta/project.json",
-          "description": "Relative path to the project config file containing project metadata."
+          "description": "Relative path to the per-project config file."
         },
-        "projectWindowTitle.tagsFile": {
-          "type": "string",
-          "default": ".harbormaster/.meta/tags.json",
-          "description": "Relative path to the tag registry file."
-        },
-        "projectWindowTitle.projectsFile": {
-          "type": "string",
-          "default": "projects.json",
-          "description": "File name/path for the Harbormaster project catalog (relative to the extension's global storage)."
-        },
-        "projectWindowTitle.projectNameKey": {
-          "type": "string",
-          "default": "project_name",
-          "description": "JSON key to read from the config file."
-        },
-        "projectWindowTitle.headlessPrefix": {
-          "type": "string",
-          "default": "[Headless] ",
-          "description": "Prefix used when no project name is found."
-        },
-        "projectWindowTitle.namedFormat": {
-          "type": "string",
-          "default": "${projectName}",
-          "description": "Template used when a project name is present."
-        },
-        "projectWindowTitle.showVersion": {
-          "type": "boolean",
-          "default": false,
-          "description": "When true, appends the project version if available."
-        },
-        "projectWindowTitle.projectVersionKey": {
-          "type": "string",
-          "default": "project_version",
-          "description": "JSON key containing the project version."
-        },
-        "projectWindowTitle.projectVersionMajorKey": {
-          "type": "string",
-          "default": "version_major",
-          "description": "JSON key containing the major component for derived versions."
-        },
-        "projectWindowTitle.projectVersionMinorKey": {
-          "type": "string",
-          "default": "version_minor",
-          "description": "JSON key containing the minor component for derived versions."
-        },
-        "projectWindowTitle.projectVersionPatchKey": {
-          "type": "string",
-          "default": "version_patch",
-          "description": "JSON key containing the patch component for derived versions."
-        },
-        "projectWindowTitle.projectVersionPrereleaseKey": {
-          "type": "string",
-          "default": "version_prerelease",
-          "description": "JSON key containing the prerelease label for derived versions (optional)."
-        },
-        "projectWindowTitle.versionFormat": {
-          "type": "string",
-          "default": "${projectName} (${projectVersion})",
-          "description": "Template used when showVersion is true and a version is available."
-        },
-        "projectWindowTitle.projectCreateDefaultFolder": {
+        "harbormaster.projectCreateDefaultFolder": {
           "type": "string",
           "default": "",
-          "description": "Default folder path for the Create Harbormaster Project dialog (falls back to ~/Documents)."
+          "description": "Default folder for the Create Project dialog (falls back to ~/Documents)."
         }
       }
     }
@@ -174,16 +95,21 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p .",
     "watch": "tsc -w -p .",
-    "lint": "echo \"No lint configured\"",
-    "test": "echo \"No tests yet\""
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "echo \"No lint configured\""
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.85.0",
+    "@vitest/coverage-v8": "^3.2.3",
     "patch-package": "^6.5.1",
-    "typescript": "^5.4.0"
+    "typescript": "^5.4.0",
+    "vitest": "^3.2.3"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@vscode/webview-ui-toolkit": "^1.4.0",
     "punycode": "^2.3.1",
     "vsce": "^2.15.0"

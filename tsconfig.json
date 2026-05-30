@@ -12,5 +12,6 @@
     "types": ["vscode", "node"],
     "skipLibCheck": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["test", "vitest.config.ts"]
 }
