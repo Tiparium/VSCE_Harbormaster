@@ -541,12 +541,24 @@ details[open] .chevron {
 .hm-btn--primary:hover {
   background: var(--vscode-button-hoverBackground);
 }
+.hm-btn--compact {
+  width: 32px;
+  padding: 6px 0;
+  flex-shrink: 0;
+  font-size: 1.1rem;
+  line-height: 1;
+}
 
-/* Button row — equal-width side-by-side buttons */
+/* Button rows */
 .hm-btn-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
   gap: 6px;
+}
+.hm-btn-row--equal {
+  grid-template-columns: 1fr 1fr;
+}
+.hm-btn-row--compact-first {
+  grid-template-columns: auto 1fr;
 }
 
 /* ── v3 legacy HTML components (keep until fully React) ──────────────────── */

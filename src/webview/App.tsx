@@ -38,16 +38,16 @@ export function App() {
       <SidebarCanvas>
         <Section>
           {data.isHarbormasterProject ? (
-            // In a Harbormaster project — open is primary, new project is secondary
-            <>
+            // Harbormaster project: compact "+" beside a full-width Open
+            <ButtonRow layout="compact-first">
+              <ActionButton label="New Project" command="harbormaster.createProject" compact />
               <ActionButton label="Open Project" command="harbormaster.openCatalog" primary />
-              <ActionButton label="New Project" command="harbormaster.createProject" />
-            </>
+            </ButtonRow>
           ) : (
-            // Not a Harbormaster project — both get equal prominence
-            <ButtonRow>
-              <ActionButton label="Open Project" command="harbormaster.openCatalog" primary />
+            // Non-Harbormaster folder: equal split
+            <ButtonRow layout="equal">
               <ActionButton label="New Project" command="harbormaster.createProject" primary />
+              <ActionButton label="Open Project" command="harbormaster.openCatalog" primary />
             </ButtonRow>
           )}
           <ActionButton label="Color Settings" command="harbormaster.setAccent" />

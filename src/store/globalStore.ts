@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
 import type { GlobalData } from '../types/global';
-import { defaultGlobalData } from '../types/global';
 import { migrateGlobalData } from './migration';
 
 const GLOBAL_FILE = 'harbormaster.global.json';
+const DEV_GLOBAL_FILE = 'harbormaster.global.dev.json';
 
 // Legacy filenames for migration compatibility (dual-write during transition).
 const LEGACY_CATALOG_FILE = 'projects.json';
@@ -16,8 +16,12 @@ export class GlobalStore {
   private readonly legacyTagsUri: vscode.Uri;
   private readonly legacyPresetsUri: vscode.Uri;
 
-  constructor(private readonly storageUri: vscode.Uri) {
-    this.globalUri = vscode.Uri.joinPath(storageUri, GLOBAL_FILE);
+  constructor(
+    private readonly storageUri: vscode.Uri,
+    private readonly devMode: boolean
+  ) {
+    const filename = devMode ? DEV_GLOBAL_FILE : GLOBAL_FILE;
+    this.globalUri = vscode.Uri.joinPath(storageUri, filename);
     this.legacyCatalogUri = vscode.Uri.joinPath(storageUri, LEGACY_CATALOG_FILE);
     this.legacyTagsUri = vscode.Uri.joinPath(storageUri, LEGACY_TAGS_FILE);
     this.legacyPresetsUri = vscode.Uri.joinPath(storageUri, LEGACY_PRESETS_FILE);
@@ -29,13 +33,17 @@ export class GlobalStore {
       return migrateGlobalData(existing);
     }
 
-    // First run — migrate from legacy files.
+    if (this.devMode) {
+      // Dev mode starts with a clean slate — never reads production data.
+      return migrateGlobalData(null);
+    }
+
+    // First production run — migrate from legacy files.
     const legacy = {
       catalog: await this.readJson(this.legacyCatalogUri),
       tags: await this.readJson(this.legacyTagsUri),
       colorPresets: await this.readJson(this.legacyPresetsUri),
     };
-
     const migrated = migrateGlobalData(null, legacy);
     await this.write(migrated);
     return migrated;
@@ -45,8 +53,10 @@ export class GlobalStore {
     await this.ensureDirectory(this.globalUri);
     await this.writeJson(this.globalUri, data);
 
-    // Dual-write to legacy files so the old extension version still works.
-    await this.writeLegacyMirrors(data);
+    // Only dual-write to legacy files in production.
+    if (!this.devMode) {
+      await this.writeLegacyMirrors(data);
+    }
   }
 
   private async writeLegacyMirrors(data: GlobalData): Promise<void> {
@@ -56,7 +66,7 @@ export class GlobalStore {
       await this.writeJson(this.legacyTagsUri, { tags: data.tags });
       await this.writeJson(this.legacyPresetsUri, data.colorPresets);
     } catch {
-      // Legacy mirror writes are best-effort — never fail the main write.
+      // Best-effort — never fail the main write.
     }
   }
 
@@ -85,5 +95,6 @@ export class GlobalStore {
 }
 
 export function createGlobalStore(context: vscode.ExtensionContext): GlobalStore {
-  return new GlobalStore(context.globalStorageUri);
+  const devMode = context.extensionMode === vscode.ExtensionMode.Development;
+  return new GlobalStore(context.globalStorageUri, devMode);
 }
