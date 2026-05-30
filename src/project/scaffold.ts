@@ -9,8 +9,8 @@ const SHELF_PATH = '.harbormaster/.context/SHELF.md';
 const DIRECTIVES_TEMPLATE = `# Directives
 
 ## On session start
-- Call \`harbormaster_context_get()\` to load current project context
-- Core directives are in \`.harbormaster/.context/DIRECTIVES.md\`
+Read \`.harbormaster/.context/DIRECTIVES.md\` (this file) and \`.harbormaster/.context/SHELF.md\` before doing any work.
+If the Harbormaster MCP server is configured, you may call \`harbormaster_context_get()\` instead to load both in one call.
 
 ## Operating rules
 - Add project-specific AI operating rules here.
@@ -41,8 +41,8 @@ const ENTRYPOINT_TEMPLATE = (projectName: string) => `# ${projectName}
 Harbormaster is installed for this project.
 
 ## On session start
-1. Call \`harbormaster_context_get()\` to load current project context.
-2. Read \`.harbormaster/.context/DIRECTIVES.md\` for operating directives.
+Read \`.harbormaster/.context/DIRECTIVES.md\` and \`.harbormaster/.context/SHELF.md\` before doing any work.
+If the Harbormaster MCP server is configured, \`harbormaster_context_get()\` loads both in one call.
 `;
 
 export class ProjectScaffold {
