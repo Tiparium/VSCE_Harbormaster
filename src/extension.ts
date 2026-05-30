@@ -26,7 +26,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // ── Domain ────────────────────────────────────────────────────────────────
   const accentManager = new AccentManager();
-  const scaffold = new ProjectScaffold(context.extensionUri, projectStore);
+  const scaffold = new ProjectScaffold();
   const health = new HealthChecker(projectStore);
   const titleController = new TitleController(projectStore, accentManager);
 

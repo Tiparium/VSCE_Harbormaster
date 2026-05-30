@@ -1,12 +1,10 @@
 import * as vscode from 'vscode';
-import * as path from 'path';
 import type { AiTool } from '../types/global';
 import { AI_TOOL_ENTRYPOINTS } from '../types/global';
-import type { ProjectStore } from '../store/projectStore';
+import { ProjectStore } from '../store/projectStore';
 
 const DIRECTIVES_PATH = '.harbormaster/.context/DIRECTIVES.md';
 const SHELF_PATH = '.harbormaster/.context/SHELF.md';
-const META_DIR = '.harbormaster/.meta';
 
 const DIRECTIVES_TEMPLATE = `# Directives
 
@@ -48,11 +46,6 @@ Harbormaster is installed for this project.
 `;
 
 export class ProjectScaffold {
-  constructor(
-    private readonly extensionUri: vscode.Uri,
-    private readonly projectStore: ProjectStore
-  ) {}
-
   async initProject(
     folderUri: vscode.Uri,
     name: string,
@@ -60,11 +53,11 @@ export class ProjectScaffold {
   ): Promise<{ created: string[] }> {
     const created: string[] = [];
 
-    // Project config
-    if (!(await this.projectStore.exists())) {
-      const config = this.projectStore.createDefault(name);
-      await this.projectStore.write(config);
-      created.push(this.projectStore.configUri.fsPath);
+    // Create a project store scoped to the target folder
+    const store = new ProjectStore(folderUri);
+    if (!(await store.exists())) {
+      await store.write(store.createDefault(name));
+      created.push(store.configUri.fsPath);
     }
 
     // Context files
@@ -81,11 +74,10 @@ export class ProjectScaffold {
 
     // Entrypoint files for configured AI tools
     for (const tool of activeAiTools) {
-      const relativePath = AI_TOOL_ENTRYPOINTS[tool];
-      const uri = vscode.Uri.joinPath(folderUri, relativePath);
+      const uri = vscode.Uri.joinPath(folderUri, AI_TOOL_ENTRYPOINTS[tool]);
       if (!(await fileExists(uri))) {
         await writeFile(uri, ENTRYPOINT_TEMPLATE(name));
-        created.push(relativePath);
+        created.push(AI_TOOL_ENTRYPOINTS[tool]);
       }
     }
 
@@ -100,11 +92,10 @@ export class ProjectScaffold {
   ): Promise<{ created: string[] }> {
     const created: string[] = [];
     for (const tool of activeAiTools) {
-      const relativePath = AI_TOOL_ENTRYPOINTS[tool];
-      const uri = vscode.Uri.joinPath(folderUri, relativePath);
+      const uri = vscode.Uri.joinPath(folderUri, AI_TOOL_ENTRYPOINTS[tool]);
       if (!(await fileExists(uri))) {
         await writeFile(uri, ENTRYPOINT_TEMPLATE(projectName));
-        created.push(relativePath);
+        created.push(AI_TOOL_ENTRYPOINTS[tool]);
       }
     }
     return { created };
