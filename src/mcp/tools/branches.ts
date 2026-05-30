@@ -96,6 +96,19 @@ export function registerBranchTools(server: McpServer, branchStore: BranchStore,
   );
 
   server.tool(
+    'branch_remove',
+    'Remove a branch from the global library. Canonical branches that ship with Harbormaster cannot be deleted.',
+    { id: z.string().describe('Branch ID to remove') },
+    async ({ id }) => {
+      const removed = await branchStore.remove(id);
+      if (!removed) {
+        return { content: [{ type: 'text', text: 'Branch not found or is a canonical branch and cannot be deleted.' }], isError: true };
+      }
+      return { content: [{ type: 'text', text: `Branch ${id} removed from library.` }] };
+    }
+  );
+
+  server.tool(
     'branch_update',
     'Update an existing branch in the global library.',
     {
