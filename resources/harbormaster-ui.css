@@ -438,3 +438,144 @@ details[open] .chevron {
   color: var(--vscode-inputValidation-errorForeground);
   font-size: 0.85rem;
 }
+
+/* ── v3 components ───────────────────────────────────────────────────────── */
+
+button {
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+  padding: 5px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-button-border, transparent);
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  cursor: pointer;
+}
+button:hover {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+button:active {
+  opacity: 0.85;
+}
+
+/* Home view */
+.project-name {
+  font-size: 1rem;
+  font-weight: 600;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.action-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.action-group button {
+  flex: 1 1 auto;
+}
+
+/* Navigation */
+.back-btn {
+  background: transparent;
+  border-color: transparent;
+  padding: 4px 6px;
+  opacity: 0.75;
+  flex-shrink: 0;
+}
+.back-btn:hover {
+  opacity: 1;
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+/* Accent view */
+.zones {
+  display: grid;
+  gap: 12px;
+}
+.zone-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--vscode-input-border);
+  background: var(--vscode-editorWidget-background);
+}
+.zone-label {
+  display: grid;
+  gap: 2px;
+}
+.zone-label span {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.zone-label small {
+  font-size: 0.75rem;
+  opacity: 0.65;
+}
+.zone-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.zone-controls input[type='color'] {
+  width: 36px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+}
+.clear-btn {
+  padding: 3px 7px;
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+.clear-btn:hover {
+  opacity: 1;
+}
+
+/* Catalog view */
+.catalog-list {
+  display: grid;
+  gap: 6px;
+}
+.catalog-item {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--vscode-input-border);
+  background: var(--vscode-editorWidget-background);
+  cursor: pointer;
+  transition: border-color 100ms ease, background 100ms ease;
+}
+.catalog-item:hover {
+  border-color: var(--vscode-focusBorder);
+  background: var(--vscode-list-hoverBackground);
+}
+.catalog-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.catalog-tags {
+  font-size: 0.75rem;
+  opacity: 0.65;
+}
+.catalog-path {
+  font-size: 0.7rem;
+  opacity: 0.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.empty-state {
+  text-align: center;
+  opacity: 0.55;
+  font-size: 0.85rem;
+  padding: 24px 0;
+}
