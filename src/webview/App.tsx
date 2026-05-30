@@ -4,6 +4,7 @@ import { Header } from './components/Header';
 import { SidebarCanvas } from './components/SidebarCanvas';
 import { Section } from './components/Section';
 import { ActionButton } from './components/ActionButton';
+import { ButtonRow } from './components/ButtonRow';
 
 const DEFAULT_DATA: SidebarData = {
   projectName: '',
@@ -23,7 +24,6 @@ export function App() {
       }
     }
     window.addEventListener('message', handleMessage);
-    // Signal to the extension that we're ready to receive data
     window.__hm_send?.({ type: 'ready' });
     return () => window.removeEventListener('message', handleMessage);
   }, []);
@@ -37,7 +37,19 @@ export function App() {
       />
       <SidebarCanvas>
         <Section>
-          <ActionButton label="Open Project" command="harbormaster.openCatalog" primary />
+          {data.isHarbormasterProject ? (
+            // In a Harbormaster project — open is primary, new project is secondary
+            <>
+              <ActionButton label="Open Project" command="harbormaster.openCatalog" primary />
+              <ActionButton label="New Project" command="harbormaster.createProject" />
+            </>
+          ) : (
+            // Not a Harbormaster project — both get equal prominence
+            <ButtonRow>
+              <ActionButton label="Open Project" command="harbormaster.openCatalog" primary />
+              <ActionButton label="New Project" command="harbormaster.createProject" primary />
+            </ButtonRow>
+          )}
           <ActionButton label="Color Settings" command="harbormaster.setAccent" />
         </Section>
       </SidebarCanvas>
