@@ -16,7 +16,7 @@ type ToolConfig = {
 const TOOL_CONFIGS: Partial<Record<AiTool, ToolConfig>> = {
   claude: {
     label: 'Claude Code',
-    configPath: path.join(os.homedir(), '.claude', 'mcp.json'),
+    configPath: path.join(os.homedir(), '.claude.json'),
     installDir: path.join(os.homedir(), '.claude'),
     format: 'json',
   },

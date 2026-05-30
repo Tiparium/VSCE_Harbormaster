@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(npm test *)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(cat ~/.claude/mcp.json 2>/dev/null || echo \"NOT FOUND\")",
+      "Read(//Users/tiparium/.claude/**)"
     ]
   }
 }

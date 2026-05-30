@@ -51,7 +51,7 @@ Harbormaster is installed for this project.
 
 ## On session start
 Read \`.harbormaster/.context/DIRECTIVES.md\` and \`.harbormaster/.context/SHELF.md\` before doing any work.
-If the Harbormaster MCP server is configured, \`harbormaster_context_get()\` loads both in one call.
+If the Harbormaster MCP server is configured, call \`harbormaster_full_context_get()\` instead — it loads both plus your active branch list in one call.
 `;
 
 export class ProjectScaffold {
