@@ -11,11 +11,12 @@ export function registerShelfTools(server: McpServer, getProject: ProjectProvide
   registerShelfSetTool(server, getProject);
   registerShelfAddTool(server, getProject, 'harbormaster_shelf_item_add');
   registerShelfMoveTool(server, getProject, 'harbormaster_shelf_item_move');
-  registerShelfReplaceTool(server, getProject);
+  registerShelfReplaceTool(server, getProject, 'harbormaster_shelf_item_replace');
   registerShelfCompleteTool(server, getProject, 'harbormaster_shelf_item_complete');
 
   registerShelfAddTool(server, getProject, 'shelf_item_add');
   registerShelfMoveTool(server, getProject, 'shelf_item_move');
+  registerShelfReplaceTool(server, getProject, 'shelf_item_replace');
   registerShelfCompleteTool(server, getProject, 'shelf_item_complete');
 }
 
@@ -61,9 +62,9 @@ function registerShelfMoveTool(server: McpServer, getProject: ProjectProvider, n
   );
 }
 
-function registerShelfReplaceTool(server: McpServer, getProject: ProjectProvider): void {
+function registerShelfReplaceTool(server: McpServer, getProject: ProjectProvider, name: string): void {
   server.tool(
-    'harbormaster_shelf_item_replace',
+    name,
     'Replace one uniquely matching shelf item.',
     {
       search: z.string().describe('Unique substring from the current item description'),

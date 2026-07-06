@@ -81,7 +81,7 @@ describe('MCP server', () => {
       arguments: { tier: 'top', description: 'Integration item', details: 'Created through MCP' },
     });
     await client.callTool({
-      name: 'harbormaster_shelf_item_replace',
+      name: 'shelf_item_replace',
       arguments: { search: 'Integration item', description: 'Updated integration item' },
     });
     const shelfResult = await client.callTool({

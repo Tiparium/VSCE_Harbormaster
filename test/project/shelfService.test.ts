@@ -47,6 +47,44 @@ describe('ShelfService', () => {
     expect(await shelf.read()).toBe('## Shelf\n\n### Immediate Shelf\n');
   });
 
+  it('matches numbered item titles and detail text', async () => {
+    const root = await setup();
+    const shelf = new ShelfService(root);
+    await fs.writeFile(path.join(root, '.harbormaster/shelf/SHELF.md'), `## Shelf
+
+### Immediate Shelf
+0) Finish playback-first module system refactor
+\tDetails: restore timeline/runtime hooks
+
+### Top Shelf
+
+### Middle Shelf
+
+### Bottom Shelf
+
+### Long Term
+
+### Completed
+`);
+
+    const replaced = await shelf.replace('playback-first', 'Finish generalized module refactor');
+    expect(replaced.changedSection).toContain('- Finish generalized module refactor');
+
+    await shelf.complete('generalized module');
+    const content = await shelf.read();
+    expect(content.indexOf('### Completed')).toBeLessThan(content.indexOf('- Finish generalized module refactor'));
+  });
+
+  it('returns candidate titles when a match is not unique or absent', async () => {
+    const root = await setup();
+    const shelf = new ShelfService(root);
+    await shelf.add('top', 'Fix server registration');
+    await shelf.add('top', 'Fix server storage');
+
+    await expect(shelf.complete('Fix server')).rejects.toThrow('Candidates: ### Top Shelf: Fix server registration; ### Top Shelf: Fix server storage.');
+    await expect(shelf.complete('missing')).rejects.toThrow('Candidates: ### Top Shelf: Fix server registration; ### Top Shelf: Fix server storage.');
+  });
+
   it('refuses an ambiguous substring match', async () => {
     const root = await setup();
     const shelf = new ShelfService(root);
