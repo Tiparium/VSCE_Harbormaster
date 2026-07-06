@@ -12,54 +12,49 @@ export class CatalogStore {
   }
 
   async upsert(project: Omit<CatalogProject, 'id' | 'createdAt'> & Partial<Pick<CatalogProject, 'id' | 'createdAt'>>): Promise<CatalogProject> {
-    const data = await this.store.read();
-    const now = new Date().toISOString();
-    const existingIndex = data.catalog.findIndex((p) => p.path === project.path);
-
-    if (existingIndex >= 0) {
-      const updated: CatalogProject = {
-        ...data.catalog[existingIndex],
+    return this.store.update((data) => {
+      const now = new Date().toISOString();
+      const existingIndex = data.catalog.findIndex((p) => p.path === project.path);
+      if (existingIndex >= 0) {
+        const updated: CatalogProject = {
+          ...data.catalog[existingIndex],
+          name: project.name,
+          tags: project.tags,
+          lastEditedAt: now,
+        };
+        data.catalog[existingIndex] = updated;
+        return updated;
+      }
+      const created: CatalogProject = {
+        id: project.id ?? generateId(),
         name: project.name,
+        path: project.path,
         tags: project.tags,
-        lastEditedAt: now,
+        createdAt: project.createdAt ?? now,
       };
-      data.catalog[existingIndex] = updated;
-      await this.store.write(data);
-      return updated;
-    }
-
-    const created: CatalogProject = {
-      id: project.id ?? generateId(),
-      name: project.name,
-      path: project.path,
-      tags: project.tags,
-      createdAt: project.createdAt ?? now,
-    };
-    data.catalog.push(created);
-    await this.store.write(data);
-    return created;
+      data.catalog.push(created);
+      return created;
+    });
   }
 
   async recordOpened(id: string): Promise<void> {
-    const data = await this.store.read();
-    const index = data.catalog.findIndex((p) => p.id === id);
-    if (index < 0) return;
-    data.catalog[index] = { ...data.catalog[index], lastOpenedAt: new Date().toISOString() };
-    await this.store.write(data);
+    await this.store.update((data) => {
+      const index = data.catalog.findIndex((p) => p.id === id);
+      if (index >= 0) data.catalog[index] = { ...data.catalog[index], lastOpenedAt: new Date().toISOString() };
+    });
   }
 
   async updatePath(id: string, newPath: string): Promise<void> {
-    const data = await this.store.read();
-    const index = data.catalog.findIndex((p) => p.id === id);
-    if (index < 0) return;
-    data.catalog[index] = { ...data.catalog[index], path: newPath, lastEditedAt: new Date().toISOString() };
-    await this.store.write(data);
+    await this.store.update((data) => {
+      const index = data.catalog.findIndex((p) => p.id === id);
+      if (index >= 0) data.catalog[index] = { ...data.catalog[index], path: newPath, lastEditedAt: new Date().toISOString() };
+    });
   }
 
   async remove(id: string): Promise<void> {
-    const data = await this.store.read();
-    data.catalog = data.catalog.filter((p) => p.id !== id);
-    await this.store.write(data);
+    await this.store.update((data) => {
+      data.catalog = data.catalog.filter((p) => p.id !== id);
+    });
   }
 
   async findByPath(path: string): Promise<CatalogProject | undefined> {

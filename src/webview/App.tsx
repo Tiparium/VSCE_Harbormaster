@@ -13,6 +13,7 @@ const DEFAULT_DATA: SidebarData = {
   isHarbormasterProject: false,
   activeAiTools: [],
   registeredMcpTools: [],
+  accent: {},
 };
 
 export function App() {
@@ -31,6 +32,11 @@ export function App() {
   }, []);
 
   const hasMcpGap = data.activeAiTools.some((t) => !data.registeredMcpTools.includes(t));
+  const zones = [
+    { id: 'frame' as const, label: 'Frame' },
+    { id: 'accent' as const, label: 'Accent' },
+    { id: 'surface' as const, label: 'Surface' },
+  ];
 
   return (
     <div className="hm-root">
@@ -54,7 +60,39 @@ export function App() {
               <ActionButton label="Open Project" command="harbormaster.openCatalog" primary />
             </ButtonRow>
           )}
-          <ActionButton label="Color Settings" command="harbormaster.setAccent" />
+        </Section>
+
+        <Section title="Accent Colors">
+          <div className="hm-accent-grid">
+            {zones.map((zone) => (
+              <label className="hm-accent-zone" key={zone.id}>
+                <span>{zone.label}</span>
+                <span className="hm-accent-controls">
+                  <input
+                    type="color"
+                    value={data.accent[zone.id] ?? '#1e1e1e'}
+                    onChange={(event) => window.__hm_send?.({
+                      type: 'setAccentZone',
+                      zone: zone.id,
+                      value: event.target.value,
+                    })}
+                  />
+                  <button
+                    className="hm-btn hm-btn--compact"
+                    aria-label={`Clear ${zone.label}`}
+                    title={`Clear ${zone.label}`}
+                    disabled={!data.accent[zone.id]}
+                    onClick={() => window.__hm_send?.({ type: 'setAccentZone', zone: zone.id })}
+                  >
+                    ×
+                  </button>
+                </span>
+              </label>
+            ))}
+            <button className="hm-btn" onClick={() => window.__hm_send?.({ type: 'clearAccent' })}>
+              Clear all accents
+            </button>
+          </div>
         </Section>
 
         {/* ── Settings ─────────────────────────────────────────────────── */}

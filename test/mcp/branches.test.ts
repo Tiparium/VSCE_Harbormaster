@@ -11,6 +11,12 @@ function makeStore(initial?: Partial<GlobalData>) {
       branches: state.branches.map((b) => ({ ...b })),
     })),
     write: vi.fn(async (data: GlobalData) => { state = { ...data }; }),
+    update: vi.fn(async <T>(mutator: (data: GlobalData) => T | Promise<T>) => {
+      const data = { ...state, branches: state.branches.map((b) => ({ ...b })) };
+      const result = await mutator(data);
+      state = data;
+      return result;
+    }),
   };
   return { store: store as any, getState: () => state };
 }
@@ -89,6 +95,32 @@ describe('BranchStore', () => {
     await bs.seed([{ id: 'brainstorm-session', name: 'Brainstorm', description: '', directives: '', canonical: true }]);
     await bs.seed([{ id: 'brainstorm-session', name: 'Brainstorm', description: '', directives: '', canonical: true }]);
     expect(getState().branches).toHaveLength(1);
+  });
+
+  it('seed refreshes canonical definitions without losing usage score', async () => {
+    const { store, getState } = makeStore();
+    const bs = new BranchStore(store);
+    await bs.seed([{ id: 'shelf', name: 'Old Shelf', description: '', directives: '', canonical: true }]);
+    await bs.incrementScore('shelf');
+    await bs.seed([{
+      id: 'shelf',
+      name: 'Shelf',
+      description: 'Current',
+      directives: '',
+      canonical: true,
+      artifacts: { root: '.harbormaster/shelf' },
+    }]);
+    expect(getState().branches[0].name).toBe('Shelf');
+    expect(getState().branches[0].artifacts?.root).toBe('.harbormaster/shelf');
+    expect(getState().branches[0].score).toBe(1);
+  });
+
+  it('retires obsolete branch definitions', async () => {
+    const { store, getState } = makeStore();
+    const bs = new BranchStore(store);
+    await bs.seed([{ id: 'core-directives', name: 'Core', description: '', directives: '', canonical: true }]);
+    await bs.retire(['core-directives']);
+    expect(getState().branches).toHaveLength(0);
   });
 
   it('summaries returns only summary fields', async () => {

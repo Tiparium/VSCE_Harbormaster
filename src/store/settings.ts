@@ -14,37 +14,29 @@ export class SettingsStore {
   }
 
   async setActiveAiTools(tools: AiTool[]): Promise<void> {
-    const data = await this.store.read();
-    data.settings.activeAiTools = tools;
-    await this.store.write(data);
+    await this.store.update((data) => { data.settings.activeAiTools = tools; });
   }
 
   async addAiTool(tool: AiTool): Promise<void> {
-    const data = await this.store.read();
-    if (!data.settings.activeAiTools.includes(tool)) {
-      data.settings.activeAiTools.push(tool);
-      await this.store.write(data);
-    }
+    await this.store.update((data) => {
+      if (!data.settings.activeAiTools.includes(tool)) data.settings.activeAiTools.push(tool);
+    });
   }
 
   async removeAiTool(tool: AiTool): Promise<void> {
-    const data = await this.store.read();
-    data.settings.activeAiTools = data.settings.activeAiTools.filter((t) => t !== tool);
-    await this.store.write(data);
+    await this.store.update((data) => {
+      data.settings.activeAiTools = data.settings.activeAiTools.filter((t) => t !== tool);
+    });
   }
 
   async addRegisteredMcpTool(tool: AiTool): Promise<void> {
-    const data = await this.store.read();
-    if (!data.settings.registeredMcpTools) data.settings.registeredMcpTools = [];
-    if (!data.settings.registeredMcpTools.includes(tool)) {
-      data.settings.registeredMcpTools.push(tool);
-      await this.store.write(data);
-    }
+    await this.store.update((data) => {
+      if (!data.settings.registeredMcpTools) data.settings.registeredMcpTools = [];
+      if (!data.settings.registeredMcpTools.includes(tool)) data.settings.registeredMcpTools.push(tool);
+    });
   }
 
   async setProjectCreateDefaultFolder(path: string): Promise<void> {
-    const data = await this.store.read();
-    data.settings.projectCreateDefaultFolder = path;
-    await this.store.write(data);
+    await this.store.update((data) => { data.settings.projectCreateDefaultFolder = path; });
   }
 }

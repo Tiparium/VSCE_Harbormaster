@@ -1,0 +1,101 @@
+{
+  "projects": [
+    {
+      "label": "Parallel Processing Homework",
+      "path": "/Users/tiparium/Desktop/Stuff/School/Parallel Computing/Homeworks",
+      "mode": "migrate",
+      "activeTools": ["codex"]
+    },
+    {
+      "label": "Particularity",
+      "path": "/Users/tiparium/Desktop/Stuff/Personal_Work_Dir/Physics_Sim",
+      "mode": "migrate",
+      "activeTools": ["codex"],
+      "reason": "Migrate canonical systems only; archive every noncanonical Harbormaster item."
+    },
+    {
+      "label": "Resume",
+      "path": "/Users/tiparium/Desktop/Stuff/Career/Resume",
+      "mode": "migrate",
+      "activeTools": ["codex"]
+    },
+    {
+      "label": "Harbormaster",
+      "path": "/Users/tiparium/Desktop/Stuff/Personal_Work_Dir/VS_Code_Extensions/MacOS_VSCE_Harbormaster",
+      "mode": "migrate",
+      "activeTools": ["claude", "codex"]
+    },
+    {
+      "label": "CS 147 Homework",
+      "path": "/Users/tiparium/Desktop/Stuff/School/CS_147/CS_147_Assignment_Work_Dir",
+      "mode": "migrate",
+      "activeTools": ["codex"]
+    },
+    {
+      "label": "CS 147 Parent",
+      "path": "/Users/tiparium/Desktop/Stuff/School/CS_147",
+      "mode": "migrate",
+      "activeTools": ["codex"],
+      "reason": "Update the partial parent-level Harbormaster footprint into a full project."
+    },
+    {
+      "label": "Harbormaster Active Testing Directory",
+      "path": "/Users/tiparium/Desktop/Stuff/Personal_Work_Dir/VS_Code_Extensions/MacOS_VSCE_Harbormaster/testing",
+      "mode": "migrate",
+      "reason": "Remove from the new catalog because the path is missing."
+    },
+    {
+      "label": "Audiobook Downloader",
+      "path": "/Users/tiparium/Desktop/Stuff/Personal_Work_Dir/Audiobook_Downloader",
+      "mode": "migrate",
+      "activeTools": ["codex"]
+    },
+    {
+      "label": ".zshrc.d",
+      "path": "/Users/tiparium/.zshrc.d",
+      "mode": "exclude",
+      "reason": "Manual migration only. Do not modify or clean its catalog entry."
+    },
+    {
+      "label": "ZSHRC [safe]",
+      "path": "/Users/tiparium/.zshrc.d/src",
+      "mode": "exclude",
+      "reason": "Manual migration only. Do not modify or clean its catalog entry."
+    },
+    {
+      "label": "Factorio Headless Server",
+      "path": "/Users/tiparium/Desktop/Stuff/Personal_Work_Dir/Factorio_Headless_Server",
+      "mode": "migrate",
+      "activeTools": ["codex"]
+    },
+    {
+      "label": "Old_CS_47",
+      "path": "/Users/tiparium/Desktop/Stuff/School/CS_47",
+      "mode": "migrate",
+      "activeTools": ["codex"]
+    },
+    {
+      "label": "Dungeons & Dragons Session Planner",
+      "path": "/Users/tiparium/Desktop/Stuff/TTRPG/DnD",
+      "mode": "migrate",
+      "activeTools": ["claude", "codex"]
+    },
+    {
+      "label": "CS 47 Handouts",
+      "path": "/Users/tiparium/Desktop/Stuff/School/CS_47/CS_47_Handouts",
+      "mode": "rebuild",
+      "projectName": "CS 47 Handouts",
+      "activeTools": ["codex"],
+      "reason": "Wipe the existing Harbormaster setup and remake it from scratch after preserving a rebuild backup."
+    },
+    {
+      "label": "Gradescope Autograder Template",
+      "path": "/Users/tiparium/Desktop/Stuff/School/general/TA/Testing_Dir/Gradescope_Autograder_Template",
+      "mode": "rebuild",
+      "projectName": "Gradescope Autograder Template",
+      "activeTools": ["codex"],
+      "reason": "Remake the Harbormaster setup from scratch after preserving legacy metadata."
+    }
+  ]
+}
+

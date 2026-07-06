@@ -26,7 +26,9 @@ const ALL_TOOLS: ToolDef[] = [
 export class SetupManager {
   constructor(
     private readonly settings: SettingsStore,
-    private readonly extensionPath: string
+    private readonly extensionPath: string,
+    private readonly globalStoragePath: string,
+    private readonly devMode: boolean
   ) {}
 
   private get standalonePath(): string {
@@ -39,6 +41,24 @@ export class SetupManager {
     return s.activeAiTools.some(
       (tool) => MCP_SUPPORTED_TOOLS.includes(tool) && !s.registeredMcpTools.includes(tool)
     );
+  }
+
+  /**
+   * Refresh paths for registrations the user has already approved. VS Code
+   * installs each extension version under a different directory, so an MCP
+   * registration pointing at the previous version becomes stale after update.
+   */
+  async refreshRegisteredMcp(): Promise<void> {
+    const settings = await this.settings.read();
+    for (const tool of settings.registeredMcpTools) {
+      if (!MCP_SUPPORTED_TOOLS.includes(tool) || !(await isToolInstalled(tool))) continue;
+      try {
+        await registerMcpServer(tool, this.standalonePath, this.registrationOptions);
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error);
+        console.warn(`Harbormaster: unable to refresh MCP registration for ${tool}: ${detail}`);
+      }
+    }
   }
 
   /** Run all pending setup steps. Returns true if setup completed fully. */
@@ -77,7 +97,7 @@ export class SetupManager {
 
       if (answer === 'Register') {
         try {
-          await registerMcpServer(tool, this.standalonePath);
+          await registerMcpServer(tool, this.standalonePath, this.registrationOptions);
           await this.settings.addRegisteredMcpTool(tool);
           void vscode.window.showInformationMessage(
             `Harbormaster: MCP server registered for ${label}. Restart ${label} to apply.`
@@ -118,7 +138,7 @@ export class SetupManager {
       );
       if (answer === 'Register') {
         try {
-          await registerMcpServer(tool, this.standalonePath);
+          await registerMcpServer(tool, this.standalonePath, this.registrationOptions);
           await this.settings.addRegisteredMcpTool(tool);
           void vscode.window.showInformationMessage(
             `Harbormaster: MCP server registered for ${label}. Restart ${label} to apply.`
@@ -160,7 +180,7 @@ export class SetupManager {
       const answer = await vscode.window.showInformationMessage(prompt, 'Register', 'Skip');
       if (answer === 'Register') {
         try {
-          await registerMcpServer(tool, this.standalonePath);
+          await registerMcpServer(tool, this.standalonePath, this.registrationOptions);
           await this.settings.addRegisteredMcpTool(tool);
           void vscode.window.showInformationMessage(
             `Harbormaster: MCP server registered for ${label}. Restart ${label} to apply.`
@@ -170,6 +190,13 @@ export class SetupManager {
         }
       }
     }
+  }
+
+  private get registrationOptions() {
+    return {
+      globalStoragePath: this.globalStoragePath,
+      devMode: this.devMode,
+    };
   }
 }
 

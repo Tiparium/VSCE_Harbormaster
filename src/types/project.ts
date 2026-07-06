@@ -1,3 +1,5 @@
+import type { Branch } from './global';
+
 export type CatalogProject = {
   id: string;
   name: string;
@@ -20,6 +22,8 @@ export type ProjectConfig = {
   accent?: ProjectAccent;
   /** IDs of branches active for this project. */
   activeBranches: string[];
+  /** Branch definitions scoped to this project only. */
+  localBranches?: Branch[];
 };
 
 export type ProjectAccent = {

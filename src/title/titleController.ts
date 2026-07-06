@@ -35,7 +35,7 @@ export class TitleController implements vscode.Disposable {
     if (!folder) return;
 
     this.watcher = vscode.workspace.createFileSystemWatcher(
-      new vscode.RelativePattern(folder, this.projectStore.configUri.fsPath)
+      new vscode.RelativePattern(folder, this.projectStore.configRelativePath)
     );
     this.disposables.push(
       this.watcher,

@@ -13,6 +13,11 @@ type ToolConfig = {
   installDir: string;
 };
 
+export type McpRegistrationOptions = {
+  globalStoragePath: string;
+  devMode: boolean;
+};
+
 const TOOL_CONFIGS: Partial<Record<AiTool, ToolConfig>> = {
   claude: {
     label: 'Claude Code',
@@ -51,37 +56,47 @@ export function getToolLabel(tool: AiTool): string {
 }
 
 /** Writes or updates the Harbormaster MCP server entry in the tool's config. */
-export async function registerMcpServer(tool: AiTool, standalonePath: string): Promise<void> {
+export async function registerMcpServer(
+  tool: AiTool,
+  standalonePath: string,
+  options: McpRegistrationOptions
+): Promise<void> {
   const config = TOOL_CONFIGS[tool];
   if (!config) throw new Error(`MCP registration not supported for ${tool}`);
 
   await fs.mkdir(path.dirname(config.configPath), { recursive: true });
 
   if (config.format === 'json') {
-    await registerJsonMcp(config.configPath, standalonePath);
+    await registerJsonMcp(config.configPath, standalonePath, options);
   } else {
-    await registerTomlMcp(config.configPath, standalonePath);
+    await registerTomlMcp(config.configPath, standalonePath, options);
   }
 }
 
-async function registerJsonMcp(configPath: string, standalonePath: string): Promise<void> {
+async function registerJsonMcp(configPath: string, standalonePath: string, options: McpRegistrationOptions): Promise<void> {
   let existing: Record<string, unknown> = {};
   try {
     existing = JSON.parse(await fs.readFile(configPath, 'utf8'));
-  } catch {
-    // File doesn't exist or is invalid — start fresh.
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      throw new Error(`Refusing to replace invalid MCP configuration at ${configPath}: ${String(error)}`);
+    }
   }
-  if (!existing.mcpServers || typeof existing.mcpServers !== 'object') {
+  if (!existing || typeof existing !== 'object' || Array.isArray(existing)) {
+    throw new Error(`Refusing to replace non-object MCP configuration at ${configPath}`);
+  }
+  if (!existing.mcpServers || typeof existing.mcpServers !== 'object' || Array.isArray(existing.mcpServers)) {
     existing.mcpServers = {};
   }
   (existing.mcpServers as Record<string, unknown>).harbormaster = {
     command: 'node',
     args: [standalonePath],
+    env: registrationEnv(options),
   };
-  await fs.writeFile(configPath, JSON.stringify(existing, null, 2) + '\n', 'utf8');
+  await writeWithBackup(configPath, JSON.stringify(existing, null, 2) + '\n');
 }
 
-async function registerTomlMcp(configPath: string, standalonePath: string): Promise<void> {
+async function registerTomlMcp(configPath: string, standalonePath: string, options: McpRegistrationOptions): Promise<void> {
   let content = '';
   try {
     content = await fs.readFile(configPath, 'utf8');
@@ -90,8 +105,9 @@ async function registerTomlMcp(configPath: string, standalonePath: string): Prom
   }
 
   const escapedPath = standalonePath.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  const escapedStorage = options.globalStoragePath.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
   const sectionHeader = '[mcp_servers.harbormaster]';
-  const newSection = `${sectionHeader}\ncommand = "node"\nargs = ["${escapedPath}"]\n`;
+  const newSection = `${sectionHeader}\ncommand = "node"\nargs = ["${escapedPath}"]\nenv = { HM_GLOBAL_STORAGE = "${escapedStorage}", HM_DEV = "${options.devMode ? '1' : '0'}" }\n`;
 
   if (content.includes(sectionHeader)) {
     // Replace the existing section (everything up to the next section header or EOF).
@@ -107,5 +123,23 @@ async function registerTomlMcp(configPath: string, standalonePath: string): Prom
     content = base ? `${base}\n\n${newSection}` : newSection;
   }
 
-  await fs.writeFile(configPath, content, 'utf8');
+  await writeWithBackup(configPath, content);
+}
+
+function registrationEnv(options: McpRegistrationOptions): Record<string, string> {
+  return {
+    HM_GLOBAL_STORAGE: options.globalStoragePath,
+    HM_DEV: options.devMode ? '1' : '0',
+  };
+}
+
+async function writeWithBackup(configPath: string, content: string): Promise<void> {
+  try {
+    await fs.copyFile(configPath, `${configPath}.harbormaster.bak`);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+  }
+  const tempPath = `${configPath}.${process.pid}.${Date.now()}.tmp`;
+  await fs.writeFile(tempPath, content, 'utf8');
+  await fs.rename(tempPath, configPath);
 }

@@ -282,6 +282,29 @@ ul {
   opacity: 0.6;
 }
 
+.hm-accent-grid {
+  display: grid;
+  gap: 10px;
+}
+.hm-accent-zone {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.hm-accent-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hm-accent-controls input[type='color'] {
+  width: 42px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--hm-border, var(--vscode-input-border));
+  background: transparent;
+}
+
 /* Accent picker */
 .topbar {
   display: flex;

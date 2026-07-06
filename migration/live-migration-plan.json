@@ -1,0 +1,1329 @@
+{
+  "generatedAt": "2026-06-08T23:33:52.800Z",
+  "manifestPath": "/Users/tiparium/Desktop/Stuff/Personal_Work_Dir/VS_Code_Extensions/MacOS_VSCE_Harbormaster/migration/live-projects.json",
+  "summary": {
+    "projects": 15,
+    "migrate": 11,
+    "rebuild": 2,
+    "excluded": 2,
+    "warnings": 1,
+    "archivedLocalBranches": 13
+  },
+  "archivedLocalBranches": [
+    {
+      "project": "Particularity",
+      "projectPath": "/Users/tiparium/Desktop/Stuff/Personal_Work_Dir/Physics_Sim",
+      "branchPath": ".harbormaster/branches/bookmarking-system.branch"
+    },
+    {
+      "project": "Particularity",
+      "projectPath": "/Users/tiparium/Desktop/Stuff/Personal_Work_Dir/Physics_Sim",
+      "branchPath": ".harbormaster/branches/branch-features.branch"
+    },
+    {
+      "project": "Particularity",
+      "projectPath": "/Users/tiparium/Desktop/Stuff/Personal_Work_Dir/Physics_Sim",
+      "branchPath": ".harbormaster/branches/cross-project-readonly.branch"
+    },
+    {
+      "project": "Particularity",
+      "projectPath": "/Users/tiparium/Desktop/Stuff/Personal_Work_Dir/Physics_Sim",
+      "branchPath": ".harbormaster/branches/running-issues.branch"
+    },
+    {
+      "project": "Particularity",
+      "projectPath": "/Users/tiparium/Desktop/Stuff/Personal_Work_Dir/Physics_Sim",
+      "branchPath": ".harbormaster/branches/temp_harbor_snapshot.branch"
+    },
+    {
+      "project": "Resume",
+      "projectPath": "/Users/tiparium/Desktop/Stuff/Career/Resume",
+      "branchPath": ".harbormaster/branches/branch-features.branch"
+    },
+    {
+      "project": "Resume",
+      "projectPath": "/Users/tiparium/Desktop/Stuff/Career/Resume",
+      "branchPath": ".harbormaster/branches/running-issues.branch"
+    },
+    {
+      "project": "Harbormaster",
+      "projectPath": "/Users/tiparium/Desktop/Stuff/Personal_Work_Dir/VS_Code_Extensions/MacOS_VSCE_Harbormaster",
+      "branchPath": ".harbormaster/branches/branch-features.branch"
+    },
+    {
+      "project": "Harbormaster",
+      "projectPath": "/Users/tiparium/Desktop/Stuff/Personal_Work_Dir/VS_Code_Extensions/MacOS_VSCE_Harbormaster",
+      "branchPath": ".harbormaster/branches/running-issues.branch"
+    },
+    {
+      "project": "Audiobook Downloader",
+      "projectPath": "/Users/tiparium/Desktop/Stuff/Personal_Work_Dir/Audiobook_Downloader",
+      "branchPath": ".harbormaster/branches/branch-features.branch"
+    },
+    {
+      "project": "Audiobook Downloader",
+      "projectPath": "/Users/tiparium/Desktop/Stuff/Personal_Work_Dir/Audiobook_Downloader",
+      "branchPath": ".harbormaster/branches/running-issues.branch"
+    },
+    {
+      "project": "Factorio Headless Server",
+      "projectPath": "/Users/tiparium/Desktop/Stuff/Personal_Work_Dir/Factorio_Headless_Server",
+      "branchPath": ".harbormaster/branches/branch-features.branch"
+    },
+    {
+      "project": "Factorio Headless Server",
+      "projectPath": "/Users/tiparium/Desktop/Stuff/Personal_Work_Dir/Factorio_Headless_Server",
+      "branchPath": ".harbormaster/branches/running-issues.branch"
+    }
+  ],
+  "projects": [
+    {
+      "label": "Parallel Processing Homework",
+      "projectPath": "/Users/tiparium/Desktop/Stuff/School/Parallel Computing/Homeworks",
+      "mode": "migrate",
+      "actions": [
+        {
+          "kind": "copy",
+          "from": ".harbormaster/.meta/project.json",
+          "to": ".harbormaster/project.json",
+          "reason": "Migrate project metadata."
+        },
+        {
+          "kind": "copy",
+          "from": ".harbormaster/.context/DIRECTIVES.md",
+          "to": ".harbormaster/DIRECTIVES.md",
+          "reason": "Migrate project directives."
+        },
+        {
+          "kind": "copy",
+          "from": ".harbormaster/.context/SHELF.md",
+          "to": ".harbormaster/shelf/SHELF.md",
+          "reason": "Migrate Shelf branch state."
+        },
+        {
+          "kind": "activate-branch",
+          "branchId": "shelf",
+          "reason": "Existing Shelf state discovered."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.context/DECISIONS_LOG.md",
+          "to": ".harbormaster/.old/context/DECISIONS_LOG.md",
+          "reason": "Archive retired context content."
+        },
+        {
+          "kind": "delete",
+          "path": ".harbormaster/.context/DIRECTIVES.md",
+          "reason": "Remove migrated canonical legacy file after verification."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.context/DOCUMENTS.md",
+          "to": ".harbormaster/.old/context/DOCUMENTS.md",
+          "reason": "Archive retired context content."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.context/PERSONALITY.md",
+          "to": ".harbormaster/.old/context/PERSONALITY.md",
+          "reason": "Archive retired context content."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.context/PROJECT_STATE.md",
+          "to": ".harbormaster/.old/context/PROJECT_STATE.md",
+          "reason": "Archive retired context content."
+        },
+        {
+          "kind": "delete",
+          "path": ".harbormaster/.context/SHELF.md",
+          "reason": "Remove migrated canonical legacy file after verification."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.meta/project.json",
+          "to": ".harbormaster/.old/meta/project.json",
+          "reason": "Archive retired metadata layout."
+        },
+        {
+          "kind": "update",
+          "path": "AGENTS.md",
+          "reason": "Install the canonical Harbormaster MCP bootstrap."
+        },
+        {
+          "kind": "catalog-upsert",
+          "path": "/Users/tiparium/Desktop/Stuff/School/Parallel Computing/Homeworks",
+          "reason": "Register migrated project in the new catalog."
+        }
+      ],
+      "archivedLocalBranches": [],
+      "warnings": []
+    },
+    {
+      "label": "Particularity",
+      "projectPath": "/Users/tiparium/Desktop/Stuff/Personal_Work_Dir/Physics_Sim",
+      "mode": "migrate",
+      "reason": "Migrate canonical systems only; archive every noncanonical Harbormaster item.",
+      "actions": [
+        {
+          "kind": "copy",
+          "from": ".harbormaster/.meta/project.json",
+          "to": ".harbormaster/project.json",
+          "reason": "Migrate project metadata."
+        },
+        {
+          "kind": "copy",
+          "from": ".harbormaster/.context/DIRECTIVES.md",
+          "to": ".harbormaster/DIRECTIVES.md",
+          "reason": "Migrate project directives."
+        },
+        {
+          "kind": "copy",
+          "from": ".harbormaster/.context/SHELF.md",
+          "to": ".harbormaster/shelf/SHELF.md",
+          "reason": "Migrate Shelf branch state."
+        },
+        {
+          "kind": "activate-branch",
+          "branchId": "shelf",
+          "reason": "Existing Shelf state discovered."
+        },
+        {
+          "kind": "copy",
+          "from": ".harbormaster/brainstorm",
+          "to": ".harbormaster/brainstorms",
+          "reason": "Migrate Brainstorm Session collection."
+        },
+        {
+          "kind": "activate-branch",
+          "branchId": "brainstorm-session",
+          "reason": "Existing brainstorm collection discovered."
+        },
+        {
+          "kind": "activate-branch",
+          "branchId": "cookie-module",
+          "reason": "Existing feedback data discovered."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/branches/bookmarking-system.branch",
+          "to": ".harbormaster/.old/branches/bookmarking-system.branch",
+          "reason": "Archive project-local branch for later review."
+        },
+        {
+          "kind": "delete",
+          "path": ".harbormaster/branches/brainstorm-session.branch",
+          "reason": "Remove duplicate local definition after canonical activation."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/branches/branch-features.branch",
+          "to": ".harbormaster/.old/branches/branch-features.branch",
+          "reason": "Archive project-local branch for later review."
+        },
+        {
+          "kind": "delete",
+          "path": ".harbormaster/branches/cookie-module.branch",
+          "reason": "Remove duplicate local definition after canonical activation."
+        },
+        {
+          "kind": "activate-branch",
+          "branchId": "core-directives",
+          "reason": "Legacy local branch \"core-directives\" matches a branch in the global library."
+        },
+        {
+          "kind": "delete",
+          "path": ".harbormaster/branches/core-directives.branch",
+          "reason": "Remove duplicate local definition after canonical activation."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/branches/cross-project-readonly.branch",
+          "to": ".harbormaster/.old/branches/cross-project-readonly.branch",
+          "reason": "Archive project-local branch for later review."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/branches/cross-project-readonly.twigf/app/relay_room.log",
+          "to": ".harbormaster/.old/branches/cross-project-readonly.twigf/app/relay_room.log",
+          "reason": "Archive nonstandard local branch data."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/branches/cross-project-readonly.twigf/cross-project-readonly.twig",
+          "to": ".harbormaster/.old/branches/cross-project-readonly.twigf/cross-project-readonly.twig",
+          "reason": "Archive nonstandard local branch data."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/branches/running-issues.branch",
+          "to": ".harbormaster/.old/branches/running-issues.branch",
+          "reason": "Archive project-local branch for later review."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/branches/temp_harbor_snapshot.branch",
+          "to": ".harbormaster/.old/branches/temp_harbor_snapshot.branch",
+          "reason": "Archive project-local branch for later review."
+        },
+        {
+          "kind": "delete",
+          "path": ".harbormaster/.context/DIRECTIVES.md",
+          "reason": "Remove migrated canonical legacy file after verification."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.context/DOCUMENTS.md",
+          "to": ".harbormaster/.old/context/DOCUMENTS.md",
+          "reason": "Archive retired context content."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.context/PERSONALITY.md",
+          "to": ".harbormaster/.old/context/PERSONALITY.md",
+          "reason": "Archive retired context content."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.context/PROJECT_STATE.md",
+          "to": ".harbormaster/.old/context/PROJECT_STATE.md",
+          "reason": "Archive retired context content."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.context/RUNNING_ISSUES.md",
+          "to": ".harbormaster/.old/context/RUNNING_ISSUES.md",
+          "reason": "Archive retired context content."
+        },
+        {
+          "kind": "delete",
+          "path": ".harbormaster/.context/SHELF.md",
+          "reason": "Remove migrated canonical legacy file after verification."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.meta/project.json",
+          "to": ".harbormaster/.old/meta/project.json",
+          "reason": "Archive retired metadata layout."
+        },
+        {
+          "kind": "delete",
+          "path": ".harbormaster/brainstorm",
+          "reason": "Remove migrated canonical artifact directory after verification."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.DS_Store",
+          "to": ".harbormaster/.old/other/.DS_Store",
+          "reason": "Archive noncanonical Harbormaster content."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/bookmarks",
+          "to": ".harbormaster/.old/other/bookmarks",
+          "reason": "Archive noncanonical Harbormaster content."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/sprints",
+          "to": ".harbormaster/.old/other/sprints",
+          "reason": "Archive noncanonical Harbormaster content."
+        },
+        {
+          "kind": "update",
+          "path": "AGENTS.md",
+          "reason": "Install the canonical Harbormaster MCP bootstrap."
+        },
+        {
+          "kind": "catalog-upsert",
+          "path": "/Users/tiparium/Desktop/Stuff/Personal_Work_Dir/Physics_Sim",
+          "reason": "Register migrated project in the new catalog."
+        }
+      ],
+      "archivedLocalBranches": [
+        ".harbormaster/branches/bookmarking-system.branch",
+        ".harbormaster/branches/branch-features.branch",
+        ".harbormaster/branches/cross-project-readonly.branch",
+        ".harbormaster/branches/running-issues.branch",
+        ".harbormaster/branches/temp_harbor_snapshot.branch"
+      ],
+      "warnings": []
+    },
+    {
+      "label": "Resume",
+      "projectPath": "/Users/tiparium/Desktop/Stuff/Career/Resume",
+      "mode": "migrate",
+      "actions": [
+        {
+          "kind": "copy",
+          "from": ".harbormaster/.meta/project.json",
+          "to": ".harbormaster/project.json",
+          "reason": "Migrate project metadata."
+        },
+        {
+          "kind": "copy",
+          "from": ".harbormaster/.context/DIRECTIVES.md",
+          "to": ".harbormaster/DIRECTIVES.md",
+          "reason": "Migrate project directives."
+        },
+        {
+          "kind": "copy",
+          "from": ".harbormaster/.context/SHELF.md",
+          "to": ".harbormaster/shelf/SHELF.md",
+          "reason": "Migrate Shelf branch state."
+        },
+        {
+          "kind": "activate-branch",
+          "branchId": "shelf",
+          "reason": "Existing Shelf state discovered."
+        },
+        {
+          "kind": "copy",
+          "from": ".harbormaster/brainstorm",
+          "to": ".harbormaster/brainstorms",
+          "reason": "Migrate Brainstorm Session collection."
+        },
+        {
+          "kind": "activate-branch",
+          "branchId": "brainstorm-session",
+          "reason": "Existing brainstorm collection discovered."
+        },
+        {
+          "kind": "activate-branch",
+          "branchId": "cookie-module",
+          "reason": "Existing feedback data discovered."
+        },
+        {
+          "kind": "delete",
+          "path": ".harbormaster/branches/brainstorm-session.branch",
+          "reason": "Remove duplicate local definition after canonical activation."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/branches/branch-features.branch",
+          "to": ".harbormaster/.old/branches/branch-features.branch",
+          "reason": "Archive project-local branch for later review."
+        },
+        {
+          "kind": "delete",
+          "path": ".harbormaster/branches/cookie-module.branch",
+          "reason": "Remove duplicate local definition after canonical activation."
+        },
+        {
+          "kind": "activate-branch",
+          "branchId": "core-directives",
+          "reason": "Legacy local branch \"core-directives\" matches a branch in the global library."
+        },
+        {
+          "kind": "delete",
+          "path": ".harbormaster/branches/core-directives.branch",
+          "reason": "Remove duplicate local definition after canonical activation."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/branches/running-issues.branch",
+          "to": ".harbormaster/.old/branches/running-issues.branch",
+          "reason": "Archive project-local branch for later review."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.context/DECISIONS_LOG.md",
+          "to": ".harbormaster/.old/context/DECISIONS_LOG.md",
+          "reason": "Archive retired context content."
+        },
+        {
+          "kind": "delete",
+          "path": ".harbormaster/.context/DIRECTIVES.md",
+          "reason": "Remove migrated canonical legacy file after verification."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.context/DOCUMENTS.md",
+          "to": ".harbormaster/.old/context/DOCUMENTS.md",
+          "reason": "Archive retired context content."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.context/PERSONALITY.md",
+          "to": ".harbormaster/.old/context/PERSONALITY.md",
+          "reason": "Archive retired context content."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.context/PROJECT_STATE.md",
+          "to": ".harbormaster/.old/context/PROJECT_STATE.md",
+          "reason": "Archive retired context content."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.context/RUNNING_ISSUES.md",
+          "to": ".harbormaster/.old/context/RUNNING_ISSUES.md",
+          "reason": "Archive retired context content."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.context/SHELF.config",
+          "to": ".harbormaster/.old/context/SHELF.config",
+          "reason": "Archive retired context content."
+        },
+        {
+          "kind": "delete",
+          "path": ".harbormaster/.context/SHELF.md",
+          "reason": "Remove migrated canonical legacy file after verification."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.meta/project.json",
+          "to": ".harbormaster/.old/meta/project.json",
+          "reason": "Archive retired metadata layout."
+        },
+        {
+          "kind": "delete",
+          "path": ".harbormaster/brainstorm",
+          "reason": "Remove migrated canonical artifact directory after verification."
+        },
+        {
+          "kind": "update",
+          "path": "AGENTS.md",
+          "reason": "Install the canonical Harbormaster MCP bootstrap."
+        },
+        {
+          "kind": "catalog-upsert",
+          "path": "/Users/tiparium/Desktop/Stuff/Career/Resume",
+          "reason": "Register migrated project in the new catalog."
+        }
+      ],
+      "archivedLocalBranches": [
+        ".harbormaster/branches/branch-features.branch",
+        ".harbormaster/branches/running-issues.branch"
+      ],
+      "warnings": []
+    },
+    {
+      "label": "Harbormaster",
+      "projectPath": "/Users/tiparium/Desktop/Stuff/Personal_Work_Dir/VS_Code_Extensions/MacOS_VSCE_Harbormaster",
+      "mode": "migrate",
+      "actions": [
+        {
+          "kind": "copy",
+          "from": ".harbormaster/.meta/project.json",
+          "to": ".harbormaster/project.json",
+          "reason": "Migrate project metadata."
+        },
+        {
+          "kind": "copy",
+          "from": ".harbormaster/.context/DIRECTIVES.md",
+          "to": ".harbormaster/DIRECTIVES.md",
+          "reason": "Migrate project directives."
+        },
+        {
+          "kind": "copy",
+          "from": ".harbormaster/.context/SHELF.md",
+          "to": ".harbormaster/shelf/SHELF.md",
+          "reason": "Migrate Shelf branch state."
+        },
+        {
+          "kind": "activate-branch",
+          "branchId": "shelf",
+          "reason": "Existing Shelf state discovered."
+        },
+        {
+          "kind": "copy",
+          "from": ".harbormaster/brainstorm",
+          "to": ".harbormaster/brainstorms",
+          "reason": "Migrate Brainstorm Session collection."
+        },
+        {
+          "kind": "activate-branch",
+          "branchId": "brainstorm-session",
+          "reason": "Existing brainstorm collection discovered."
+        },
+        {
+          "kind": "activate-branch",
+          "branchId": "cookie-module",
+          "reason": "Existing feedback data discovered."
+        },
+        {
+          "kind": "delete",
+          "path": ".harbormaster/branches/brainstorm-session.branch",
+          "reason": "Remove duplicate local definition after canonical activation."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/branches/branch-features.branch",
+          "to": ".harbormaster/.old/branches/branch-features.branch",
+          "reason": "Archive project-local branch for later review."
+        },
+        {
+          "kind": "delete",
+          "path": ".harbormaster/branches/cookie-module.branch",
+          "reason": "Remove duplicate local definition after canonical activation."
+        },
+        {
+          "kind": "activate-branch",
+          "branchId": "core-directives",
+          "reason": "Legacy local branch \"core-directives\" matches a branch in the global library."
+        },
+        {
+          "kind": "delete",
+          "path": ".harbormaster/branches/core-directives.branch",
+          "reason": "Remove duplicate local definition after canonical activation."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/branches/running-issues.branch",
+          "to": ".harbormaster/.old/branches/running-issues.branch",
+          "reason": "Archive project-local branch for later review."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.context/DECISIONS_LOG.md",
+          "to": ".harbormaster/.old/context/DECISIONS_LOG.md",
+          "reason": "Archive retired context content."
+        },
+        {
+          "kind": "delete",
+          "path": ".harbormaster/.context/DIRECTIVES.md",
+          "reason": "Remove migrated canonical legacy file after verification."
+        },
+        {
+          "kind": "delete",
+          "path": ".harbormaster/.context/SHELF.md",
+          "reason": "Remove migrated canonical legacy file after verification."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.meta/project.json",
+          "to": ".harbormaster/.old/meta/project.json",
+          "reason": "Archive retired metadata layout."
+        },
+        {
+          "kind": "delete",
+          "path": ".harbormaster/brainstorm",
+          "reason": "Remove migrated canonical artifact directory after verification."
+        },
+        {
+          "kind": "create",
+          "path": "CLAUDE.md",
+          "reason": "Install the canonical Harbormaster MCP bootstrap."
+        },
+        {
+          "kind": "update",
+          "path": "AGENTS.md",
+          "reason": "Install the canonical Harbormaster MCP bootstrap."
+        },
+        {
+          "kind": "catalog-upsert",
+          "path": "/Users/tiparium/Desktop/Stuff/Personal_Work_Dir/VS_Code_Extensions/MacOS_VSCE_Harbormaster",
+          "reason": "Register migrated project in the new catalog."
+        }
+      ],
+      "archivedLocalBranches": [
+        ".harbormaster/branches/branch-features.branch",
+        ".harbormaster/branches/running-issues.branch"
+      ],
+      "warnings": []
+    },
+    {
+      "label": "CS 147 Homework",
+      "projectPath": "/Users/tiparium/Desktop/Stuff/School/CS_147/CS_147_Assignment_Work_Dir",
+      "mode": "migrate",
+      "actions": [
+        {
+          "kind": "copy",
+          "from": ".harbormaster/.meta/project.json",
+          "to": ".harbormaster/project.json",
+          "reason": "Migrate project metadata."
+        },
+        {
+          "kind": "copy",
+          "from": ".harbormaster/.context/DIRECTIVES.md",
+          "to": ".harbormaster/DIRECTIVES.md",
+          "reason": "Migrate project directives."
+        },
+        {
+          "kind": "copy",
+          "from": ".harbormaster/.context/SHELF.md",
+          "to": ".harbormaster/shelf/SHELF.md",
+          "reason": "Migrate Shelf branch state."
+        },
+        {
+          "kind": "activate-branch",
+          "branchId": "shelf",
+          "reason": "Existing Shelf state discovered."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.context/DECISIONS_LOG.md",
+          "to": ".harbormaster/.old/context/DECISIONS_LOG.md",
+          "reason": "Archive retired context content."
+        },
+        {
+          "kind": "delete",
+          "path": ".harbormaster/.context/DIRECTIVES.md",
+          "reason": "Remove migrated canonical legacy file after verification."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.context/DOCUMENTS.md",
+          "to": ".harbormaster/.old/context/DOCUMENTS.md",
+          "reason": "Archive retired context content."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.context/PERSONALITY.md",
+          "to": ".harbormaster/.old/context/PERSONALITY.md",
+          "reason": "Archive retired context content."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.context/PROJECT_STATE.md",
+          "to": ".harbormaster/.old/context/PROJECT_STATE.md",
+          "reason": "Archive retired context content."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.context/SHELF.config",
+          "to": ".harbormaster/.old/context/SHELF.config",
+          "reason": "Archive retired context content."
+        },
+        {
+          "kind": "delete",
+          "path": ".harbormaster/.context/SHELF.md",
+          "reason": "Remove migrated canonical legacy file after verification."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.context/verilog_rules_keywords.txt",
+          "to": ".harbormaster/.old/context/verilog_rules_keywords.txt",
+          "reason": "Archive retired context content."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.context/verilog_rules_operators.txt",
+          "to": ".harbormaster/.old/context/verilog_rules_operators.txt",
+          "reason": "Archive retired context content."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.meta/project.json",
+          "to": ".harbormaster/.old/meta/project.json",
+          "reason": "Archive retired metadata layout."
+        },
+        {
+          "kind": "update",
+          "path": "AGENTS.md",
+          "reason": "Install the canonical Harbormaster MCP bootstrap."
+        },
+        {
+          "kind": "catalog-upsert",
+          "path": "/Users/tiparium/Desktop/Stuff/School/CS_147/CS_147_Assignment_Work_Dir",
+          "reason": "Register migrated project in the new catalog."
+        }
+      ],
+      "archivedLocalBranches": [],
+      "warnings": []
+    },
+    {
+      "label": "CS 147 Parent",
+      "projectPath": "/Users/tiparium/Desktop/Stuff/School/CS_147",
+      "mode": "migrate",
+      "reason": "Update the partial parent-level Harbormaster footprint into a full project.",
+      "actions": [
+        {
+          "kind": "create",
+          "path": ".harbormaster/project.json",
+          "reason": "Create missing canonical project metadata."
+        },
+        {
+          "kind": "create",
+          "path": ".harbormaster/DIRECTIVES.md",
+          "reason": "Create missing canonical directives."
+        },
+        {
+          "kind": "create",
+          "path": "AGENTS.md",
+          "reason": "Install the canonical Harbormaster MCP bootstrap."
+        },
+        {
+          "kind": "catalog-upsert",
+          "path": "/Users/tiparium/Desktop/Stuff/School/CS_147",
+          "reason": "Register migrated project in the new catalog."
+        }
+      ],
+      "archivedLocalBranches": [],
+      "warnings": []
+    },
+    {
+      "label": "Harbormaster Active Testing Directory",
+      "projectPath": "/Users/tiparium/Desktop/Stuff/Personal_Work_Dir/VS_Code_Extensions/MacOS_VSCE_Harbormaster/testing",
+      "mode": "migrate",
+      "reason": "Remove from the new catalog because the path is missing.",
+      "actions": [
+        {
+          "kind": "catalog-remove",
+          "path": "/Users/tiparium/Desktop/Stuff/Personal_Work_Dir/VS_Code_Extensions/MacOS_VSCE_Harbormaster/testing",
+          "reason": "Project path is missing."
+        }
+      ],
+      "archivedLocalBranches": [],
+      "warnings": [
+        "Project path does not exist."
+      ]
+    },
+    {
+      "label": "Audiobook Downloader",
+      "projectPath": "/Users/tiparium/Desktop/Stuff/Personal_Work_Dir/Audiobook_Downloader",
+      "mode": "migrate",
+      "actions": [
+        {
+          "kind": "copy",
+          "from": ".harbormaster/.meta/project.json",
+          "to": ".harbormaster/project.json",
+          "reason": "Migrate project metadata."
+        },
+        {
+          "kind": "copy",
+          "from": ".harbormaster/.context/DIRECTIVES.md",
+          "to": ".harbormaster/DIRECTIVES.md",
+          "reason": "Migrate project directives."
+        },
+        {
+          "kind": "copy",
+          "from": ".harbormaster/.context/SHELF.md",
+          "to": ".harbormaster/shelf/SHELF.md",
+          "reason": "Migrate Shelf branch state."
+        },
+        {
+          "kind": "activate-branch",
+          "branchId": "shelf",
+          "reason": "Existing Shelf state discovered."
+        },
+        {
+          "kind": "copy",
+          "from": ".harbormaster/brainstorm",
+          "to": ".harbormaster/brainstorms",
+          "reason": "Migrate Brainstorm Session collection."
+        },
+        {
+          "kind": "activate-branch",
+          "branchId": "brainstorm-session",
+          "reason": "Existing brainstorm collection discovered."
+        },
+        {
+          "kind": "activate-branch",
+          "branchId": "cookie-module",
+          "reason": "Existing feedback data discovered."
+        },
+        {
+          "kind": "delete",
+          "path": ".harbormaster/branches/brainstorm-session.branch",
+          "reason": "Remove duplicate local definition after canonical activation."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/branches/branch-features.branch",
+          "to": ".harbormaster/.old/branches/branch-features.branch",
+          "reason": "Archive project-local branch for later review."
+        },
+        {
+          "kind": "delete",
+          "path": ".harbormaster/branches/cookie-module.branch",
+          "reason": "Remove duplicate local definition after canonical activation."
+        },
+        {
+          "kind": "activate-branch",
+          "branchId": "core-directives",
+          "reason": "Legacy local branch \"core-directives\" matches a branch in the global library."
+        },
+        {
+          "kind": "delete",
+          "path": ".harbormaster/branches/core-directives.branch",
+          "reason": "Remove duplicate local definition after canonical activation."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/branches/running-issues.branch",
+          "to": ".harbormaster/.old/branches/running-issues.branch",
+          "reason": "Archive project-local branch for later review."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.context/BRAINSTORMMODE.md",
+          "to": ".harbormaster/.old/context/BRAINSTORMMODE.md",
+          "reason": "Archive retired context content."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.context/CONTEXTAPI.md",
+          "to": ".harbormaster/.old/context/CONTEXTAPI.md",
+          "reason": "Archive retired context content."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.context/CONTEXTAPI_SCHEMA.md",
+          "to": ".harbormaster/.old/context/CONTEXTAPI_SCHEMA.md",
+          "reason": "Archive retired context content."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.context/DECISIONS_LOG.md",
+          "to": ".harbormaster/.old/context/DECISIONS_LOG.md",
+          "reason": "Archive retired context content."
+        },
+        {
+          "kind": "delete",
+          "path": ".harbormaster/.context/DIRECTIVES.md",
+          "reason": "Remove migrated canonical legacy file after verification."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.context/DOCUMENTS.md",
+          "to": ".harbormaster/.old/context/DOCUMENTS.md",
+          "reason": "Archive retired context content."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.context/PERSONALITY.md",
+          "to": ".harbormaster/.old/context/PERSONALITY.md",
+          "reason": "Archive retired context content."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.context/PROJECT_STATE.md",
+          "to": ".harbormaster/.old/context/PROJECT_STATE.md",
+          "reason": "Archive retired context content."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.context/RUNNING_ISSUES.md",
+          "to": ".harbormaster/.old/context/RUNNING_ISSUES.md",
+          "reason": "Archive retired context content."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.context/SHELF.config",
+          "to": ".harbormaster/.old/context/SHELF.config",
+          "reason": "Archive retired context content."
+        },
+        {
+          "kind": "delete",
+          "path": ".harbormaster/.context/SHELF.md",
+          "reason": "Remove migrated canonical legacy file after verification."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.meta/project.json",
+          "to": ".harbormaster/.old/meta/project.json",
+          "reason": "Archive retired metadata layout."
+        },
+        {
+          "kind": "delete",
+          "path": ".harbormaster/brainstorm",
+          "reason": "Remove migrated canonical artifact directory after verification."
+        },
+        {
+          "kind": "update",
+          "path": "AGENTS.md",
+          "reason": "Install the canonical Harbormaster MCP bootstrap."
+        },
+        {
+          "kind": "catalog-upsert",
+          "path": "/Users/tiparium/Desktop/Stuff/Personal_Work_Dir/Audiobook_Downloader",
+          "reason": "Register migrated project in the new catalog."
+        }
+      ],
+      "archivedLocalBranches": [
+        ".harbormaster/branches/branch-features.branch",
+        ".harbormaster/branches/running-issues.branch"
+      ],
+      "warnings": []
+    },
+    {
+      "label": ".zshrc.d",
+      "projectPath": "/Users/tiparium/.zshrc.d",
+      "mode": "exclude",
+      "reason": "Manual migration only. Do not modify or clean its catalog entry.",
+      "actions": [
+        {
+          "kind": "review",
+          "path": "/Users/tiparium/.zshrc.d",
+          "reason": "Manual migration only. Do not modify or clean its catalog entry."
+        }
+      ],
+      "archivedLocalBranches": [],
+      "warnings": []
+    },
+    {
+      "label": "ZSHRC [safe]",
+      "projectPath": "/Users/tiparium/.zshrc.d/src",
+      "mode": "exclude",
+      "reason": "Manual migration only. Do not modify or clean its catalog entry.",
+      "actions": [
+        {
+          "kind": "review",
+          "path": "/Users/tiparium/.zshrc.d/src",
+          "reason": "Manual migration only. Do not modify or clean its catalog entry."
+        }
+      ],
+      "archivedLocalBranches": [],
+      "warnings": []
+    },
+    {
+      "label": "Factorio Headless Server",
+      "projectPath": "/Users/tiparium/Desktop/Stuff/Personal_Work_Dir/Factorio_Headless_Server",
+      "mode": "migrate",
+      "actions": [
+        {
+          "kind": "copy",
+          "from": ".harbormaster/.meta/project.json",
+          "to": ".harbormaster/project.json",
+          "reason": "Migrate project metadata."
+        },
+        {
+          "kind": "copy",
+          "from": ".harbormaster/.context/DIRECTIVES.md",
+          "to": ".harbormaster/DIRECTIVES.md",
+          "reason": "Migrate project directives."
+        },
+        {
+          "kind": "copy",
+          "from": ".harbormaster/.context/SHELF.md",
+          "to": ".harbormaster/shelf/SHELF.md",
+          "reason": "Migrate Shelf branch state."
+        },
+        {
+          "kind": "activate-branch",
+          "branchId": "shelf",
+          "reason": "Existing Shelf state discovered."
+        },
+        {
+          "kind": "activate-branch",
+          "branchId": "brainstorm-session",
+          "reason": "Legacy local branch \"brainstorm-session\" matches a branch in the global library."
+        },
+        {
+          "kind": "delete",
+          "path": ".harbormaster/branches/brainstorm-session.branch",
+          "reason": "Remove duplicate local definition after canonical activation."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/branches/branch-features.branch",
+          "to": ".harbormaster/.old/branches/branch-features.branch",
+          "reason": "Archive project-local branch for later review."
+        },
+        {
+          "kind": "activate-branch",
+          "branchId": "cookie-module",
+          "reason": "Legacy local branch \"cookie-module\" matches a branch in the global library."
+        },
+        {
+          "kind": "delete",
+          "path": ".harbormaster/branches/cookie-module.branch",
+          "reason": "Remove duplicate local definition after canonical activation."
+        },
+        {
+          "kind": "activate-branch",
+          "branchId": "core-directives",
+          "reason": "Legacy local branch \"core-directives\" matches a branch in the global library."
+        },
+        {
+          "kind": "delete",
+          "path": ".harbormaster/branches/core-directives.branch",
+          "reason": "Remove duplicate local definition after canonical activation."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/branches/running-issues.branch",
+          "to": ".harbormaster/.old/branches/running-issues.branch",
+          "reason": "Archive project-local branch for later review."
+        },
+        {
+          "kind": "delete",
+          "path": ".harbormaster/.context/DIRECTIVES.md",
+          "reason": "Remove migrated canonical legacy file after verification."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.context/DOCUMENTS.md",
+          "to": ".harbormaster/.old/context/DOCUMENTS.md",
+          "reason": "Archive retired context content."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.context/PERSONALITY.md",
+          "to": ".harbormaster/.old/context/PERSONALITY.md",
+          "reason": "Archive retired context content."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.context/PROJECT_STATE.md",
+          "to": ".harbormaster/.old/context/PROJECT_STATE.md",
+          "reason": "Archive retired context content."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.context/RUNNING_ISSUES.md",
+          "to": ".harbormaster/.old/context/RUNNING_ISSUES.md",
+          "reason": "Archive retired context content."
+        },
+        {
+          "kind": "delete",
+          "path": ".harbormaster/.context/SHELF.md",
+          "reason": "Remove migrated canonical legacy file after verification."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.meta/project.json",
+          "to": ".harbormaster/.old/meta/project.json",
+          "reason": "Archive retired metadata layout."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.DS_Store",
+          "to": ".harbormaster/.old/other/.DS_Store",
+          "reason": "Archive noncanonical Harbormaster content."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/sprints",
+          "to": ".harbormaster/.old/other/sprints",
+          "reason": "Archive noncanonical Harbormaster content."
+        },
+        {
+          "kind": "update",
+          "path": "AGENTS.md",
+          "reason": "Install the canonical Harbormaster MCP bootstrap."
+        },
+        {
+          "kind": "catalog-upsert",
+          "path": "/Users/tiparium/Desktop/Stuff/Personal_Work_Dir/Factorio_Headless_Server",
+          "reason": "Register migrated project in the new catalog."
+        }
+      ],
+      "archivedLocalBranches": [
+        ".harbormaster/branches/branch-features.branch",
+        ".harbormaster/branches/running-issues.branch"
+      ],
+      "warnings": []
+    },
+    {
+      "label": "Old_CS_47",
+      "projectPath": "/Users/tiparium/Desktop/Stuff/School/CS_47",
+      "mode": "migrate",
+      "actions": [
+        {
+          "kind": "copy",
+          "from": ".harbormaster/.meta/project.json",
+          "to": ".harbormaster/project.json",
+          "reason": "Migrate project metadata."
+        },
+        {
+          "kind": "copy",
+          "from": ".harbormaster/.context/DIRECTIVES.md",
+          "to": ".harbormaster/DIRECTIVES.md",
+          "reason": "Migrate project directives."
+        },
+        {
+          "kind": "copy",
+          "from": ".harbormaster/.context/SHELF.md",
+          "to": ".harbormaster/shelf/SHELF.md",
+          "reason": "Migrate Shelf branch state."
+        },
+        {
+          "kind": "activate-branch",
+          "branchId": "shelf",
+          "reason": "Existing Shelf state discovered."
+        },
+        {
+          "kind": "delete",
+          "path": ".harbormaster/.context/DIRECTIVES.md",
+          "reason": "Remove migrated canonical legacy file after verification."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.context/DOCUMENTS.md",
+          "to": ".harbormaster/.old/context/DOCUMENTS.md",
+          "reason": "Archive retired context content."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.context/PERSONALITY.md",
+          "to": ".harbormaster/.old/context/PERSONALITY.md",
+          "reason": "Archive retired context content."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.context/PROJECT_STATE.md",
+          "to": ".harbormaster/.old/context/PROJECT_STATE.md",
+          "reason": "Archive retired context content."
+        },
+        {
+          "kind": "delete",
+          "path": ".harbormaster/.context/SHELF.md",
+          "reason": "Remove migrated canonical legacy file after verification."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.meta/project.json",
+          "to": ".harbormaster/.old/meta/project.json",
+          "reason": "Archive retired metadata layout."
+        },
+        {
+          "kind": "update",
+          "path": "AGENTS.md",
+          "reason": "Install the canonical Harbormaster MCP bootstrap."
+        },
+        {
+          "kind": "catalog-upsert",
+          "path": "/Users/tiparium/Desktop/Stuff/School/CS_47",
+          "reason": "Register migrated project in the new catalog."
+        }
+      ],
+      "archivedLocalBranches": [],
+      "warnings": []
+    },
+    {
+      "label": "Dungeons & Dragons Session Planner",
+      "projectPath": "/Users/tiparium/Desktop/Stuff/TTRPG/DnD",
+      "mode": "migrate",
+      "actions": [
+        {
+          "kind": "copy",
+          "from": ".harbormaster/.meta/project.json",
+          "to": ".harbormaster/project.json",
+          "reason": "Migrate project metadata."
+        },
+        {
+          "kind": "copy",
+          "from": ".harbormaster/.context/DIRECTIVES.md",
+          "to": ".harbormaster/DIRECTIVES.md",
+          "reason": "Migrate project directives."
+        },
+        {
+          "kind": "copy",
+          "from": ".harbormaster/.context/SHELF.md",
+          "to": ".harbormaster/shelf/SHELF.md",
+          "reason": "Migrate Shelf branch state."
+        },
+        {
+          "kind": "activate-branch",
+          "branchId": "shelf",
+          "reason": "Existing Shelf state discovered."
+        },
+        {
+          "kind": "delete",
+          "path": ".harbormaster/.context/DIRECTIVES.md",
+          "reason": "Remove migrated canonical legacy file after verification."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.context/DIRECTIVES_TEMP.md",
+          "to": ".harbormaster/.old/context/DIRECTIVES_TEMP.md",
+          "reason": "Archive retired context content."
+        },
+        {
+          "kind": "delete",
+          "path": ".harbormaster/.context/SHELF.md",
+          "reason": "Remove migrated canonical legacy file after verification."
+        },
+        {
+          "kind": "move",
+          "from": ".harbormaster/.meta/project.json",
+          "to": ".harbormaster/.old/meta/project.json",
+          "reason": "Archive retired metadata layout."
+        },
+        {
+          "kind": "update",
+          "path": "CLAUDE.md",
+          "reason": "Install the canonical Harbormaster MCP bootstrap."
+        },
+        {
+          "kind": "update",
+          "path": "AGENTS.md",
+          "reason": "Install the canonical Harbormaster MCP bootstrap."
+        },
+        {
+          "kind": "catalog-upsert",
+          "path": "/Users/tiparium/Desktop/Stuff/TTRPG/DnD",
+          "reason": "Register migrated project in the new catalog."
+        }
+      ],
+      "archivedLocalBranches": [],
+      "warnings": []
+    },
+    {
+      "label": "CS 47 Handouts",
+      "projectPath": "/Users/tiparium/Desktop/Stuff/School/CS_47/CS_47_Handouts",
+      "mode": "rebuild",
+      "reason": "Wipe the existing Harbormaster setup and remake it from scratch after preserving a rebuild backup.",
+      "actions": [
+        {
+          "kind": "move",
+          "from": ".harbormaster",
+          "to": ".harbormaster-rebuild-backup",
+          "reason": "Preserve the previous Harbormaster directory before rebuilding."
+        },
+        {
+          "kind": "create",
+          "path": ".harbormaster/project.json",
+          "reason": "Create fresh project metadata."
+        },
+        {
+          "kind": "create",
+          "path": ".harbormaster/DIRECTIVES.md",
+          "reason": "Create fresh project directives."
+        },
+        {
+          "kind": "create",
+          "path": "AGENTS.md",
+          "reason": "Create canonical Harbormaster MCP bootstrap."
+        },
+        {
+          "kind": "catalog-upsert",
+          "path": "/Users/tiparium/Desktop/Stuff/School/CS_47/CS_47_Handouts",
+          "reason": "Register rebuilt project in the new catalog."
+        }
+      ],
+      "archivedLocalBranches": [],
+      "warnings": []
+    },
+    {
+      "label": "Gradescope Autograder Template",
+      "projectPath": "/Users/tiparium/Desktop/Stuff/School/general/TA/Testing_Dir/Gradescope_Autograder_Template",
+      "mode": "rebuild",
+      "reason": "Remake the Harbormaster setup from scratch after preserving legacy metadata.",
+      "actions": [
+        {
+          "kind": "move",
+          "from": ".project.json",
+          "to": ".harbormaster-rebuild-backup/.project.json",
+          "reason": "Preserve legacy project metadata before rebuilding."
+        },
+        {
+          "kind": "create",
+          "path": ".harbormaster/project.json",
+          "reason": "Create fresh project metadata."
+        },
+        {
+          "kind": "create",
+          "path": ".harbormaster/DIRECTIVES.md",
+          "reason": "Create fresh project directives."
+        },
+        {
+          "kind": "create",
+          "path": "AGENTS.md",
+          "reason": "Create canonical Harbormaster MCP bootstrap."
+        },
+        {
+          "kind": "catalog-upsert",
+          "path": "/Users/tiparium/Desktop/Stuff/School/general/TA/Testing_Dir/Gradescope_Autograder_Template",
+          "reason": "Register rebuilt project in the new catalog."
+        }
+      ],
+      "archivedLocalBranches": [],
+      "warnings": []
+    }
+  ]
+}

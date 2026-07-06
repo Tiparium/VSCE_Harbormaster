@@ -3,6 +3,10 @@ import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import type { WebviewMessage } from './types';
 
+declare function acquireVsCodeApi(): {
+  postMessage(message: WebviewMessage): void;
+};
+
 declare global {
   interface Window {
     __hm_send?: (msg: WebviewMessage) => void;

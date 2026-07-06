@@ -5,11 +5,15 @@ import type { BranchStore } from '../store/branches';
 import { registerCatalogTools } from './tools/catalog';
 import { registerProjectTools } from './tools/project';
 import { registerBranchTools } from './tools/branches';
+import { registerShelfTools } from './tools/shelf';
+import { registerDirectivesTools } from './tools/directives';
+import { createProjectProvider } from './workspace';
 
 export type HarbormasterMcpConfig = {
-  workspacePath: string;
+  workspacePath?: string;
   catalog: CatalogStore;
   branches: BranchStore;
+  devMode?: boolean;
 };
 
 export function createMcpServer(config: HarbormasterMcpConfig): McpServer {
@@ -17,10 +21,13 @@ export function createMcpServer(config: HarbormasterMcpConfig): McpServer {
     name: 'harbormaster',
     version: '3.0.0',
   });
+  const getProject = createProjectProvider(server, config.workspacePath);
 
   registerCatalogTools(server, config.catalog);
-  registerProjectTools(server, config.workspacePath, config.branches);
-  registerBranchTools(server, config.branches, config.workspacePath);
+  registerProjectTools(server, getProject, config.branches);
+  registerDirectivesTools(server, getProject);
+  registerBranchTools(server, config.branches, getProject, config.devMode ?? false);
+  registerShelfTools(server, getProject);
 
   return server;
 }

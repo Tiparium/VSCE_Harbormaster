@@ -3,8 +3,7 @@ import type { HealthSnapshot } from '../types/project';
 import type { ProjectStore } from '../store/projectStore';
 
 const REQUIRED_CONTEXT_FILES = [
-  '.harbormaster/.context/DIRECTIVES.md',
-  '.harbormaster/.context/SHELF.md',
+  '.harbormaster/DIRECTIVES.md',
 ];
 
 export class HealthChecker {

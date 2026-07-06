@@ -4,6 +4,7 @@ import type { ProjectStore } from '../../store/projectStore';
 import type { SettingsStore } from '../../store/settings';
 import type { ExtensionMessage, SidebarData, WebviewMessage } from '../../webview/types';
 import { shell } from './shell';
+import { ProjectService } from '../../project/projectService';
 
 export class SidebarProvider implements vscode.WebviewViewProvider {
   private view?: vscode.WebviewView;
@@ -24,7 +25,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
     const cssUri = view.webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'resources', 'harbormaster-ui.css'));
     const scriptUri = view.webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'out', 'webview.js'));
-    view.webview.html = shell(cssUri.toString(), scriptUri.toString());
+    view.webview.html = shell(cssUri.toString(), scriptUri.toString(), view.webview.cspSource, nonce());
 
     view.webview.onDidReceiveMessage(async (msg: WebviewMessage) => {
       if (msg.type === 'ready') {
@@ -32,6 +33,19 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       }
       if (msg.type === 'command') {
         await vscode.commands.executeCommand(msg.command);
+      }
+      if (msg.type === 'setAccentZone') {
+        const config = await this.projectStore.read();
+        if (!config) return;
+        const accent = { ...(config.accent ?? {}) };
+        if (msg.value) accent[msg.zone] = msg.value;
+        else delete accent[msg.zone];
+        await new ProjectService(this.projectStore.workspacePath).updateConfig((raw) => { raw.accent = accent; });
+        await this.sendData();
+      }
+      if (msg.type === 'clearAccent') {
+        await vscode.commands.executeCommand('harbormaster.clearAccent');
+        await this.sendData();
       }
     });
   }
@@ -51,10 +65,16 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       isHarbormasterProject: config !== null,
       activeAiTools: settings.activeAiTools,
       registeredMcpTools: settings.registeredMcpTools,
+      accent: config?.accent ?? {},
     };
     const msg: ExtensionMessage = { type: 'update', data };
     await this.view.webview.postMessage(msg);
   }
+}
+
+function nonce(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  return Array.from({ length: 32 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
 }
 
 function deriveVersion(config: { version_major?: number; version_minor?: number; version_patch?: number; version_prerelease?: string; project_version?: string } | null): string {

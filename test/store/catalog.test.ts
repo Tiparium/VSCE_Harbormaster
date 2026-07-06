@@ -8,6 +8,12 @@ function makeStore(initial?: Partial<GlobalData>) {
   const store = {
     read: vi.fn(async () => ({ ...state })),
     write: vi.fn(async (data: GlobalData) => { state = { ...data }; }),
+    update: vi.fn(async <T>(mutator: (data: GlobalData) => T | Promise<T>) => {
+      const data = { ...state, catalog: state.catalog.map((p) => ({ ...p })) };
+      const result = await mutator(data);
+      state = data;
+      return result;
+    }),
   };
   return { store: store as any, getState: () => state };
 }

@@ -1,106 +1,139 @@
-import * as vscode from 'vscode';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import type * as vscode from 'vscode';
 import type { GlobalData } from '../types/global';
 import { migrateGlobalData } from './migration';
 
-/** Minimal interface satisfied by both GlobalStore and the standalone NodeGlobalStore. */
 export interface GlobalStoreApi {
   read(): Promise<GlobalData>;
   write(data: GlobalData): Promise<void>;
+  update<T>(mutator: (data: GlobalData) => T | Promise<T>): Promise<T>;
 }
 
 const GLOBAL_FILE = 'harbormaster.global.json';
 const DEV_GLOBAL_FILE = 'harbormaster.global.dev.json';
-
-// Legacy filenames for migration compatibility (dual-write during transition).
 const LEGACY_CATALOG_FILE = 'projects.json';
 const LEGACY_TAGS_FILE = 'tags.json';
 const LEGACY_PRESETS_FILE = 'color-presets.json';
+const LOCK_STALE_MS = 30_000;
+const LOCK_RETRY_MS = 25;
+const LOCK_ATTEMPTS = 200;
 
-export class GlobalStore {
-  private readonly globalUri: vscode.Uri;
-  private readonly legacyCatalogUri: vscode.Uri;
-  private readonly legacyTagsUri: vscode.Uri;
-  private readonly legacyPresetsUri: vscode.Uri;
+/**
+ * File-backed global store shared by the extension host and standalone MCP
+ * processes. Mutations are serialized with a cross-process lock and committed
+ * through an atomic rename so independent feature writes cannot clobber each
+ * other or leave a partially written database.
+ */
+export class GlobalStore implements GlobalStoreApi {
+  private readonly filePath: string;
 
   constructor(
-    private readonly storageUri: vscode.Uri,
+    private readonly storagePath: string,
     private readonly devMode: boolean
   ) {
-    const filename = devMode ? DEV_GLOBAL_FILE : GLOBAL_FILE;
-    this.globalUri = vscode.Uri.joinPath(storageUri, filename);
-    this.legacyCatalogUri = vscode.Uri.joinPath(storageUri, LEGACY_CATALOG_FILE);
-    this.legacyTagsUri = vscode.Uri.joinPath(storageUri, LEGACY_TAGS_FILE);
-    this.legacyPresetsUri = vscode.Uri.joinPath(storageUri, LEGACY_PRESETS_FILE);
+    this.filePath = path.join(storagePath, devMode ? DEV_GLOBAL_FILE : GLOBAL_FILE);
   }
 
   async read(): Promise<GlobalData> {
-    const existing = await this.readJson(this.globalUri);
-    if (existing !== null) {
-      return migrateGlobalData(existing);
-    }
+    const existing = await readJson(this.filePath);
+    if (existing !== undefined) return migrateGlobalData(existing);
+    if (this.devMode) return migrateGlobalData(null);
 
-    if (this.devMode) {
-      // Dev mode starts with a clean slate — never reads production data.
-      return migrateGlobalData(null);
-    }
-
-    // First production run — migrate from legacy files.
     const legacy = {
-      catalog: await this.readJson(this.legacyCatalogUri),
-      tags: await this.readJson(this.legacyTagsUri),
-      colorPresets: await this.readJson(this.legacyPresetsUri),
+      catalog: await readJson(path.join(this.storagePath, LEGACY_CATALOG_FILE)),
+      tags: await readJson(path.join(this.storagePath, LEGACY_TAGS_FILE)),
+      colorPresets: await readJson(path.join(this.storagePath, LEGACY_PRESETS_FILE)),
     };
-    const migrated = migrateGlobalData(null, legacy);
-    await this.write(migrated);
-    return migrated;
+    return migrateGlobalData(null, legacy);
   }
 
   async write(data: GlobalData): Promise<void> {
-    await this.ensureDirectory(this.globalUri);
-    await this.writeJson(this.globalUri, data);
+    await this.withLock(async () => {
+      await this.writeUnlocked(data);
+    });
+  }
 
-    // Only dual-write to legacy files in production.
+  async update<T>(mutator: (data: GlobalData) => T | Promise<T>): Promise<T> {
+    return this.withLock(async () => {
+      const data = await this.read();
+      const result = await mutator(data);
+      await this.writeUnlocked(data);
+      return result;
+    });
+  }
+
+  private async writeUnlocked(data: GlobalData): Promise<void> {
+    await fs.mkdir(this.storagePath, { recursive: true });
+    const tempPath = `${this.filePath}.${process.pid}.${Date.now()}.tmp`;
+    await fs.writeFile(tempPath, JSON.stringify(data, null, 2) + '\n', 'utf8');
+    await fs.rename(tempPath, this.filePath);
+
     if (!this.devMode) {
-      await this.writeLegacyMirrors(data);
+      await Promise.allSettled([
+        writeJsonAtomic(path.join(this.storagePath, LEGACY_CATALOG_FILE), data.catalog),
+        writeJsonAtomic(path.join(this.storagePath, LEGACY_TAGS_FILE), { tags: data.tags }),
+        writeJsonAtomic(path.join(this.storagePath, LEGACY_PRESETS_FILE), data.colorPresets),
+      ]);
     }
   }
 
-  private async writeLegacyMirrors(data: GlobalData): Promise<void> {
-    try {
-      await this.ensureDirectory(this.legacyCatalogUri);
-      await this.writeJson(this.legacyCatalogUri, data.catalog);
-      await this.writeJson(this.legacyTagsUri, { tags: data.tags });
-      await this.writeJson(this.legacyPresetsUri, data.colorPresets);
-    } catch {
-      // Best-effort — never fail the main write.
+  private async withLock<T>(operation: () => Promise<T>): Promise<T> {
+    const lockPath = `${this.filePath}.lock`;
+    await fs.mkdir(this.storagePath, { recursive: true });
+
+    for (let attempt = 0; attempt < LOCK_ATTEMPTS; attempt++) {
+      try {
+        await fs.mkdir(lockPath);
+        try {
+          return await operation();
+        } finally {
+          await fs.rmdir(lockPath).catch(() => undefined);
+        }
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+        await removeStaleLock(lockPath);
+        await delay(LOCK_RETRY_MS);
+      }
     }
-  }
 
-  private async readJson(uri: vscode.Uri): Promise<unknown | null> {
-    try {
-      const content = await vscode.workspace.fs.readFile(uri);
-      return JSON.parse(Buffer.from(content).toString('utf8'));
-    } catch {
-      return null;
-    }
-  }
-
-  private async writeJson(uri: vscode.Uri, value: unknown): Promise<void> {
-    await vscode.workspace.fs.writeFile(
-      uri,
-      Buffer.from(JSON.stringify(value, null, 2) + '\n', 'utf8')
-    );
-  }
-
-  private async ensureDirectory(uri: vscode.Uri): Promise<void> {
-    const segments = uri.path.split('/');
-    segments.pop();
-    const dirUri = uri.with({ path: segments.join('/') || '/' });
-    await vscode.workspace.fs.createDirectory(dirUri);
+    throw new Error(`Timed out waiting for Harbormaster global store lock: ${lockPath}`);
   }
 }
 
 export function createGlobalStore(context: vscode.ExtensionContext): GlobalStore {
-  const devMode = context.extensionMode === vscode.ExtensionMode.Development;
-  return new GlobalStore(context.globalStorageUri, devMode);
+  return new GlobalStore(
+    context.globalStorageUri.fsPath,
+    context.extensionMode === 2 // vscode.ExtensionMode.Development
+  );
+}
+
+async function readJson(filePath: string): Promise<unknown | undefined> {
+  try {
+    return JSON.parse(await fs.readFile(filePath, 'utf8'));
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+    throw new Error(`Unable to read Harbormaster data at ${filePath}: ${String(error)}`);
+  }
+}
+
+async function writeJsonAtomic(filePath: string, value: unknown): Promise<void> {
+  const tempPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+  await fs.writeFile(tempPath, JSON.stringify(value, null, 2) + '\n', 'utf8');
+  await fs.rename(tempPath, filePath);
+}
+
+async function removeStaleLock(lockPath: string): Promise<void> {
+  try {
+    const stat = await fs.stat(lockPath);
+    if (Date.now() - stat.mtimeMs > LOCK_STALE_MS) {
+      await fs.rmdir(lockPath);
+    }
+  } catch {
+    // Another process released the lock between checks.
+  }
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }

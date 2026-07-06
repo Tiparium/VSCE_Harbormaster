@@ -1,102 +1,59 @@
-import { z } from 'zod';
-import * as fs from 'fs/promises';
-import * as path from 'path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { BranchStore } from '../../store/branches';
+import type { ProjectProvider } from '../workspace';
+import { mcpText, mcpError } from '../response';
+import { SHELF_BRANCH_ID } from '../../project/projectService';
+import { BranchService } from '../../project/branchService';
 
-const DIRECTIVES_PATH = '.harbormaster/.context/DIRECTIVES.md';
-const SHELF_PATH = '.harbormaster/.context/SHELF.md';
-const CONFIG_PATH = '.harbormaster/.meta/project.json';
-
-export function registerProjectTools(server: McpServer, workspacePath: string, branches: BranchStore): void {
+export function registerProjectTools(server: McpServer, getProject: ProjectProvider, branches: BranchStore): void {
   server.tool(
     'harbormaster_full_context_get',
-    'Load full project context: directives, shelf, and active branch list. Use at session start. For targeted refreshes during work, prefer the focused tools.',
+    'Load core project context: directives and active branch list. Includes optional branch context such as Shelf when active.',
     {},
-    async () => {
+    async () => withProject(getProject, async (project) => {
       const sections: string[] = [];
+      sections.push(`## DIRECTIVES\n\n${await project.readDirectives()}`);
 
-      try {
-        const directives = await fs.readFile(path.join(workspacePath, DIRECTIVES_PATH), 'utf8');
-        sections.push(`## DIRECTIVES\n\n${directives}`);
-      } catch {
-        sections.push('## DIRECTIVES\n\n(not found)');
+      const activeIds = await project.getActiveBranchIds();
+      if (activeIds.includes(SHELF_BRANCH_ID)) {
+        sections.push(`## SHELF\n\n${await project.readShelf()}`);
       }
-
-      try {
-        const shelf = await fs.readFile(path.join(workspacePath, SHELF_PATH), 'utf8');
-        sections.push(`## SHELF\n\n${shelf}`);
-      } catch {
-        sections.push('## SHELF\n\n(not found)');
-      }
-
-      const activeBranchSummaries = await getActiveBranchSummaries(workspacePath, branches);
-      if (activeBranchSummaries.length > 0) {
-        const list = activeBranchSummaries.map((b) => `- ${b.id}: ${b.name} — ${b.description}`).join('\n');
-        sections.push(`## ACTIVE BRANCHES\n\n${list}\n\nTo get full behavior for a branch: branch_get(id)`);
-      } else {
-        sections.push('## ACTIVE BRANCHES\n\n(none)');
-      }
-
-      return { content: [{ type: 'text', text: sections.join('\n\n---\n\n') }] };
-    }
+      const allBranches = await new BranchService(branches, project, false).listAvailable();
+      const active = activeIds
+        .map((id) => allBranches.find((branch) => branch.id === id))
+        .filter((branch): branch is NonNullable<typeof branch> => !!branch);
+      const list = active.length
+        ? `${active.map((branch) => `- ${branch.id}${branch.local ? ' (local)' : ''}: ${branch.name} — ${branch.description}`).join('\n')}\n\nTo get full behavior for a branch: branch_get(id)`
+        : '(none)';
+      sections.push(`## ACTIVE BRANCHES\n\n${list}`);
+      return mcpText(sections.join('\n\n---\n\n'));
+    })
   );
 
   server.tool(
     'harbormaster_directives_get',
     'Get the current DIRECTIVES.md content.',
     {},
-    async () => {
-      try {
-        const content = await fs.readFile(path.join(workspacePath, DIRECTIVES_PATH), 'utf8');
-        return { content: [{ type: 'text', text: content }] };
-      } catch {
-        return { content: [{ type: 'text', text: '(DIRECTIVES.md not found)' }], isError: true };
-      }
-    }
+    async () => withProject(getProject, async (project) => mcpText(await project.readDirectives()))
   );
 
   server.tool(
     'harbormaster_shelf_get',
-    'Get the current SHELF.md content.',
+    'Get the current SHELF.md content. Requires the Shelf branch to be active.',
     {},
-    async () => {
-      try {
-        const content = await fs.readFile(path.join(workspacePath, SHELF_PATH), 'utf8');
-        return { content: [{ type: 'text', text: content }] };
-      } catch {
-        return { content: [{ type: 'text', text: '(SHELF.md not found)' }], isError: true };
+    async () => withProject(getProject, async (project) => {
+      if (!(await project.isBranchActive(SHELF_BRANCH_ID))) {
+        return mcpError('The Shelf branch is not active for this project.');
       }
-    }
-  );
-
-  server.tool(
-    'harbormaster_directives_set',
-    'Overwrite DIRECTIVES.md with new content.',
-    { content: z.string().describe('Full content to write to DIRECTIVES.md') },
-    async ({ content }) => {
-      const target = path.join(workspacePath, DIRECTIVES_PATH);
-      await fs.mkdir(path.dirname(target), { recursive: true });
-      await fs.writeFile(target, content.endsWith('\n') ? content : `${content}\n`, 'utf8');
-      return { content: [{ type: 'text', text: 'DIRECTIVES.md updated.' }] };
-    }
+      return mcpText(await project.readShelf());
+    })
   );
 }
 
-async function getActiveBranchSummaries(
-  workspacePath: string,
-  branches: BranchStore
-): Promise<{ id: string; name: string; description: string }[]> {
+async function withProject<T>(getProject: ProjectProvider, operation: (project: Awaited<ReturnType<ProjectProvider>>) => Promise<T>) {
   try {
-    const raw = JSON.parse(await fs.readFile(path.join(workspacePath, CONFIG_PATH), 'utf8'));
-    const activeIds: string[] = Array.isArray(raw.activeBranches) ? raw.activeBranches : [];
-    if (activeIds.length === 0) return [];
-    const allBranches = await branches.list();
-    return activeIds
-      .map((id) => allBranches.find((b) => b.id === id))
-      .filter((b): b is NonNullable<typeof b> => b !== undefined)
-      .map(({ id, name, description }) => ({ id, name, description }));
-  } catch {
-    return [];
+    return await operation(await getProject());
+  } catch (error) {
+    return mcpError(error instanceof Error ? error.message : String(error));
   }
 }

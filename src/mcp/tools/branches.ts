@@ -1,144 +1,162 @@
 import { z } from 'zod';
-import * as fs from 'fs/promises';
-import * as path from 'path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { BranchService } from '../../project/branchService';
 import type { BranchStore } from '../../store/branches';
+import type { ProjectProvider } from '../workspace';
+import { mcpData, mcpOk, mcpError, mcpText } from '../response';
 
-const CONFIG_PATH = '.harbormaster/.meta/project.json';
+const artifactFileSchema = z.object({
+  path: z.string(),
+  content: z.string(),
+});
 
-export function registerBranchTools(server: McpServer, branchStore: BranchStore, projectPath: string): void {
-  server.tool(
-    'branch_library_list',
-    'List all branches in the global Harbormaster library, including canonical branches that ship with Harbormaster.',
-    {},
-    async () => {
-      const branches = await branchStore.list();
-      const summaries = branchStore.summaries(branches);
-      return { content: [{ type: 'text', text: JSON.stringify(summaries, null, 2) }] };
-    }
+const artifactsSchema = z.object({
+  root: z.string().describe('Project-relative directory inside .harbormaster.'),
+  initialFiles: z.array(artifactFileSchema).optional(),
+});
+
+export function registerBranchTools(
+  server: McpServer,
+  branchStore: BranchStore,
+  getProject: ProjectProvider,
+  devMode: boolean
+): void {
+  server.tool('branch_library_list', 'List all branches in the global Harbormaster library.', {}, async () => {
+    const branches = await branchStore.list();
+    return mcpData(branchStore.summaries(branches));
+  });
+
+  server.tool('project_branches_list', 'List branches active for the current project.', {}, async () =>
+    run(getProject, branchStore, devMode, async (service) => mcpData(service.summaries(await service.listActive())))
   );
 
-  server.tool(
-    'project_branches_list',
-    'List the branches active for the current project, with their names and descriptions. Does not return full directives — use branch_get(id) for that.',
-    {},
-    async () => {
-      const activeIds = await readActiveBranches(projectPath);
-      if (activeIds.length === 0) {
-        return { content: [{ type: 'text', text: 'No branches active for this project.' }] };
-      }
-      const allBranches = await branchStore.list();
-      const active = activeIds
-        .map((id) => allBranches.find((b) => b.id === id))
-        .filter((b): b is NonNullable<typeof b> => b !== undefined)
-        .map(({ id, name, description, score, canonical }) => ({ id, name, description, score, canonical }));
-      return { content: [{ type: 'text', text: JSON.stringify(active, null, 2) }] };
-    }
+  server.tool('branch_get', 'Get the full directives for a specific branch.', { id: z.string() }, async ({ id }) => {
+    const project = await getOptionalProject(getProject);
+    const branch = await new BranchService(branchStore, project, devMode).get(id);
+    return branch ? mcpText(branch.directives) : mcpError(`Branch "${id}" not found.`);
+  });
+
+  server.tool('branch_activate', 'Activate a branch for the current project.', { id: z.string() }, async ({ id }) =>
+    run(getProject, branchStore, devMode, async (service) => mcpOk(`Branch "${(await service.activate(id)).name}" activated.`))
   );
 
-  server.tool(
-    'branch_get',
-    'Get the full directives for a specific branch. Call this when you are about to perform a branch workflow.',
-    { id: z.string().describe('Branch ID') },
-    async ({ id }) => {
-      const branch = await branchStore.get(id);
-      if (!branch) {
-        return { content: [{ type: 'text', text: `Branch "${id}" not found.` }], isError: true };
-      }
-      return { content: [{ type: 'text', text: branch.directives }] };
-    }
-  );
-
-  server.tool(
-    'branch_activate',
-    'Activate a branch for the current project.',
-    { id: z.string().describe('Branch ID to activate') },
-    async ({ id }) => {
-      const branch = await branchStore.get(id);
-      if (!branch) {
-        return { content: [{ type: 'text', text: `Branch "${id}" not found.` }], isError: true };
-      }
-      const activeIds = await readActiveBranches(projectPath);
-      if (!activeIds.includes(id)) {
-        await writeActiveBranches(projectPath, [...activeIds, id]);
-        await branchStore.incrementScore(id);
-      }
-      return { content: [{ type: 'text', text: `Branch "${branch.name}" activated.` }] };
-    }
-  );
-
-  server.tool(
-    'branch_deactivate',
-    'Deactivate a branch for the current project.',
-    { id: z.string().describe('Branch ID to deactivate') },
-    async ({ id }) => {
-      const activeIds = await readActiveBranches(projectPath);
-      if (activeIds.includes(id)) {
-        await writeActiveBranches(projectPath, activeIds.filter((b) => b !== id));
-        await branchStore.decrementScore(id);
-      }
-      return { content: [{ type: 'text', text: `Branch "${id}" deactivated.` }] };
-    }
+  server.tool('branch_deactivate', 'Deactivate a branch for the current project.', { id: z.string() }, async ({ id }) =>
+    run(getProject, branchStore, devMode, async (service) => {
+      await service.deactivate(id);
+      return mcpOk(`Branch "${id}" deactivated.`);
+    })
   );
 
   server.tool(
     'branch_create',
     'Create a new branch in the global library.',
+    { name: z.string(), description: z.string(), directives: z.string(), artifacts: artifactsSchema.optional() },
+    async (input) => runGlobal(branchStore, devMode, async (service) =>
+      mcpData(service.summaries([await service.create(input)])[0]))
+  );
+
+  server.tool('project_branch_library_list', 'List branches available to the current project, including project-local branches.', {}, async () =>
+    run(getProject, branchStore, devMode, async (service) => mcpData(service.summaries(await service.listAvailable())))
+  );
+
+  server.tool('project_local_branches_list', 'List branches defined only in the current project.', {}, async () =>
+    run(getProject, branchStore, devMode, async (service) => mcpData(service.summaries(await service.listLocal())))
+  );
+
+  server.tool(
+    'project_branch_create',
+    'Create a branch definition local to the current project without adding it to the global library.',
+    { name: z.string(), description: z.string(), directives: z.string(), artifacts: artifactsSchema.optional() },
+    async (input) => run(getProject, branchStore, devMode, async (service) =>
+      mcpData(service.summaries([await service.createLocal(input)])[0]))
+  );
+
+  server.tool(
+    'branch_fork',
+    'Fork an existing global or local branch into a new project-local branch.',
     {
-      name: z.string().describe('Short name for the branch'),
-      description: z.string().describe('What this branch does'),
-      directives: z.string().describe('Full directive content for this branch'),
+      id: z.string(),
+      name: z.string().optional(),
+      description: z.string().optional(),
+      directives: z.string().optional(),
+      artifacts: artifactsSchema.optional(),
     },
-    async ({ name, description, directives }) => {
-      const branch = await branchStore.create({ name, description, directives });
-      return { content: [{ type: 'text', text: JSON.stringify(branchStore.summaries([branch])[0], null, 2) }] };
-    }
+    async ({ id, ...overrides }) => run(getProject, branchStore, devMode, async (service) =>
+      mcpData(service.summaries([await service.forkLocal(id, overrides)])[0]))
   );
 
   server.tool(
     'branch_remove',
-    'Remove a branch from the global library. Canonical branches that ship with Harbormaster cannot be deleted.',
-    { id: z.string().describe('Branch ID to remove') },
-    async ({ id }) => {
-      const removed = await branchStore.remove(id);
-      if (!removed) {
-        return { content: [{ type: 'text', text: 'Branch not found or is a canonical branch and cannot be deleted.' }], isError: true };
-      }
-      return { content: [{ type: 'text', text: `Branch ${id} removed from library.` }] };
-    }
+    devMode ? 'Permanently delete a branch created in this dev session.' : 'Flag a branch for deletion pending UI confirmation.',
+    { id: z.string() },
+    async ({ id }) => runGlobal(branchStore, devMode, async (service) => {
+      const result = await service.remove(id);
+      return mcpOk(result === 'deleted' ? `Branch "${id}" permanently deleted.` : `Branch "${id}" flagged for deletion.`);
+    })
   );
 
   server.tool(
     'branch_update',
     'Update an existing branch in the global library.',
     {
-      id: z.string().describe('Branch ID'),
+      id: z.string(),
       name: z.string().optional(),
       description: z.string().optional(),
       directives: z.string().optional(),
+      artifacts: artifactsSchema.optional(),
     },
-    async ({ id, ...patch }) => {
-      const updated = await branchStore.update(id, patch);
-      if (!updated) {
-        return { content: [{ type: 'text', text: 'Branch not found.' }], isError: true };
-      }
-      return { content: [{ type: 'text', text: JSON.stringify(branchStore.summaries([updated])[0], null, 2) }] };
-    }
+    async ({ id, ...patch }) => runGlobal(branchStore, devMode, async (service) => {
+      const updated = await service.update(id, patch);
+      return updated ? mcpData(service.summaries([updated])[0]) : mcpError('Branch not found.');
+    })
+  );
+
+  server.tool(
+    'project_branch_update',
+    'Update a branch definition local to the current project.',
+    {
+      id: z.string(),
+      name: z.string().optional(),
+      description: z.string().optional(),
+      directives: z.string().optional(),
+      artifacts: artifactsSchema.optional(),
+    },
+    async ({ id, ...patch }) => run(getProject, branchStore, devMode, async (service) => {
+      const updated = await service.updateLocal(id, patch);
+      return updated ? mcpData(service.summaries([updated])[0]) : mcpError('Local branch not found.');
+    })
   );
 }
 
-async function readActiveBranches(projectPath: string): Promise<string[]> {
+async function runGlobal<T>(
+  store: BranchStore,
+  devMode: boolean,
+  operation: (service: BranchService) => Promise<T>
+) {
   try {
-    const raw = JSON.parse(await fs.readFile(path.join(projectPath, CONFIG_PATH), 'utf8'));
-    return Array.isArray(raw.activeBranches) ? raw.activeBranches : [];
-  } catch {
-    return [];
+    return await operation(new BranchService(store, undefined, devMode));
+  } catch (error) {
+    return mcpError(error instanceof Error ? error.message : String(error));
   }
 }
 
-async function writeActiveBranches(projectPath: string, ids: string[]): Promise<void> {
-  const configPath = path.join(projectPath, CONFIG_PATH);
-  const raw = JSON.parse(await fs.readFile(configPath, 'utf8'));
-  raw.activeBranches = ids;
-  await fs.writeFile(configPath, JSON.stringify(raw, null, 2) + '\n', 'utf8');
+async function run<T>(
+  getProject: ProjectProvider,
+  store: BranchStore,
+  devMode: boolean,
+  operation: (service: BranchService) => Promise<T>
+) {
+  try {
+    return await operation(new BranchService(store, await getProject(), devMode));
+  } catch (error) {
+    return mcpError(error instanceof Error ? error.message : String(error));
+  }
+}
+
+async function getOptionalProject(getProject: ProjectProvider) {
+  try {
+    return await getProject();
+  } catch {
+    return undefined;
+  }
 }

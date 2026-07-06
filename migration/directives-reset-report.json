@@ -1,0 +1,90 @@
+{
+  "completedAt": "2026-06-10T17:00:43.203Z",
+  "templateBytes": 379,
+  "results": [
+    {
+      "label": "Parallel Processing Homework",
+      "path": "/Users/tiparium/Desktop/Stuff/School/Parallel Computing/Homeworks",
+      "status": "replaced",
+      "archivedAt": ".harbormaster/.old/context/DIRECTIVES.md"
+    },
+    {
+      "label": "Particularity",
+      "path": "/Users/tiparium/Desktop/Stuff/Personal_Work_Dir/Physics_Sim",
+      "status": "replaced",
+      "archivedAt": ".harbormaster/.old/context/DIRECTIVES.md"
+    },
+    {
+      "label": "Resume",
+      "path": "/Users/tiparium/Desktop/Stuff/Career/Resume",
+      "status": "replaced",
+      "archivedAt": ".harbormaster/.old/context/DIRECTIVES.md"
+    },
+    {
+      "label": "Harbormaster",
+      "path": "/Users/tiparium/Desktop/Stuff/Personal_Work_Dir/VS_Code_Extensions/MacOS_VSCE_Harbormaster",
+      "status": "replaced",
+      "archivedAt": ".harbormaster/.old/context/DIRECTIVES.md"
+    },
+    {
+      "label": "CS 147 Homework",
+      "path": "/Users/tiparium/Desktop/Stuff/School/CS_147/CS_147_Assignment_Work_Dir",
+      "status": "replaced",
+      "archivedAt": ".harbormaster/.old/context/DIRECTIVES.md"
+    },
+    {
+      "label": "CS 147 Parent",
+      "path": "/Users/tiparium/Desktop/Stuff/School/CS_147",
+      "status": "already-template"
+    },
+    {
+      "label": "Harbormaster Active Testing Directory",
+      "path": "/Users/tiparium/Desktop/Stuff/Personal_Work_Dir/VS_Code_Extensions/MacOS_VSCE_Harbormaster/testing",
+      "status": "missing"
+    },
+    {
+      "label": "Audiobook Downloader",
+      "path": "/Users/tiparium/Desktop/Stuff/Personal_Work_Dir/Audiobook_Downloader",
+      "status": "replaced",
+      "archivedAt": ".harbormaster/.old/context/DIRECTIVES.md"
+    },
+    {
+      "label": ".zshrc.d",
+      "path": "/Users/tiparium/.zshrc.d",
+      "status": "excluded"
+    },
+    {
+      "label": "ZSHRC [safe]",
+      "path": "/Users/tiparium/.zshrc.d/src",
+      "status": "excluded"
+    },
+    {
+      "label": "Factorio Headless Server",
+      "path": "/Users/tiparium/Desktop/Stuff/Personal_Work_Dir/Factorio_Headless_Server",
+      "status": "replaced",
+      "archivedAt": ".harbormaster/.old/context/DIRECTIVES.md"
+    },
+    {
+      "label": "Old_CS_47",
+      "path": "/Users/tiparium/Desktop/Stuff/School/CS_47",
+      "status": "replaced",
+      "archivedAt": ".harbormaster/.old/context/DIRECTIVES.md"
+    },
+    {
+      "label": "Dungeons & Dragons Session Planner",
+      "path": "/Users/tiparium/Desktop/Stuff/TTRPG/DnD",
+      "status": "replaced",
+      "archivedAt": ".harbormaster/.old/context/DIRECTIVES.md"
+    },
+    {
+      "label": "CS 47 Handouts",
+      "path": "/Users/tiparium/Desktop/Stuff/School/CS_47/CS_47_Handouts",
+      "status": "already-template"
+    },
+    {
+      "label": "Gradescope Autograder Template",
+      "path": "/Users/tiparium/Desktop/Stuff/School/general/TA/Testing_Dir/Gradescope_Autograder_Template",
+      "status": "already-template"
+    }
+  ]
+}

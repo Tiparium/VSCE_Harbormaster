@@ -32,12 +32,39 @@ export type Branch = {
   name: string;
   description: string;
   directives: string;
+  /** Optional project-local data owned by this branch. */
+  artifacts?: BranchArtifacts;
   createdAt: string;
   updatedAt: string;
   /** Number of projects currently using this branch. */
   score: number;
   /** Whether this branch ships with Harbormaster and cannot be deleted. */
   canonical?: boolean;
+  /** Flagged for deletion by an agent in production mode; awaiting user confirmation in the UI. */
+  pendingDeletion?: boolean;
+  /** Created during a dev-mode session; eligible for hard deletion in dev mode. */
+  devCreated?: boolean;
+  /** Stored in one project's config instead of the global branch library. */
+  local?: boolean;
+  /** Global branch id this local branch was forked from. */
+  forkedFrom?: string;
+};
+
+export type BranchArtifacts = {
+  /** Directory relative to the project root. */
+  root: string;
+  /** Files created when the branch is first activated. */
+  initialFiles?: BranchArtifactFile[];
+  /** Previous directories copied into root during project adoption. */
+  legacyRoots?: string[];
+};
+
+export type BranchArtifactFile = {
+  /** File path relative to the artifact root. */
+  path: string;
+  content: string;
+  /** Previous project-relative file paths copied during adoption. */
+  legacyPaths?: string[];
 };
 
 export type GlobalData = {

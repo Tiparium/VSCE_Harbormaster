@@ -22,13 +22,31 @@ export function migrateGlobalData(raw: unknown, legacy?: LegacyGlobalFiles): Glo
     data = applyMigrations(data);
   }
 
-  return data;
+  return normalizeGlobalData(data);
 }
 
 function applyMigrations(data: GlobalData): GlobalData {
   // Version 0 → 1 is handled by buildFromLegacy.
   // Future: if (data.version < 2) { data = migrateV1toV2(data); }
   return { ...data, version: GLOBAL_DATA_VERSION };
+}
+
+function normalizeGlobalData(data: GlobalData): GlobalData {
+  const defaults = defaultGlobalData();
+  return {
+    ...defaults,
+    ...data,
+    catalog: Array.isArray(data.catalog) ? data.catalog : [],
+    tags: Array.isArray(data.tags) ? data.tags : [],
+    colorPresets: Array.isArray(data.colorPresets) ? data.colorPresets : [],
+    branches: Array.isArray(data.branches) ? data.branches : [],
+    settings: {
+      ...defaults.settings,
+      ...(data.settings ?? {}),
+      activeAiTools: Array.isArray(data.settings?.activeAiTools) ? data.settings.activeAiTools : [],
+      registeredMcpTools: Array.isArray(data.settings?.registeredMcpTools) ? data.settings.registeredMcpTools : [],
+    },
+  };
 }
 
 function buildFromLegacy(legacy?: LegacyGlobalFiles, existing?: Record<string, unknown>): GlobalData {

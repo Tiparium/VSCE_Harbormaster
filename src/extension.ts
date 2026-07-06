@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 
 import { createGlobalStore } from './store/globalStore';
-import { CANONICAL_BRANCHES } from './store/canonicalBranches';
+import { CANONICAL_BRANCHES, RETIRED_BRANCH_IDS } from './store/canonicalBranches';
 import { ProjectStore } from './store/projectStore';
 import { CatalogStore } from './store/catalog';
 import { SettingsStore } from './store/settings';
@@ -14,6 +14,7 @@ import { SidebarProvider } from './ui/sidebar/sidebarProvider';
 import { SetupManager } from './setup/setupManager';
 import { registerCommands } from './commands/index';
 import { getPrimaryFolder } from './utils/fileUtils';
+import { ProjectService } from './project/projectService';
 
 export function activate(context: vscode.ExtensionContext): void {
   // ── Data layer ────────────────────────────────────────────────────────────
@@ -23,15 +24,19 @@ export function activate(context: vscode.ExtensionContext): void {
   const branches = new BranchStore(globalStore);
 
   const folder = getPrimaryFolder();
-  const configPath = vscode.workspace.getConfiguration('harbormaster').get<string>('projectConfigFile');
-  const projectStore = new ProjectStore(folder?.uri ?? vscode.Uri.file('/'), configPath);
+  const projectStore = new ProjectStore(folder?.uri ?? vscode.Uri.file('/'));
 
   // ── Domain ────────────────────────────────────────────────────────────────
   const accentManager = new AccentManager();
   const scaffold = new ProjectScaffold();
   const health = new HealthChecker(projectStore);
   const titleController = new TitleController(projectStore, accentManager);
-  const setupManager = new SetupManager(settings, context.extensionUri.fsPath);
+  const setupManager = new SetupManager(
+    settings,
+    context.extensionUri.fsPath,
+    context.globalStorageUri.fsPath,
+    context.extensionMode === vscode.ExtensionMode.Development
+  );
 
   // ── UI ────────────────────────────────────────────────────────────────────
   const sidebar = new SidebarProvider(
@@ -50,7 +55,7 @@ export function activate(context: vscode.ExtensionContext): void {
   registerCommands(context, { catalog, settings, projectStore, scaffold, sidebar, setupManager });
 
   // ── Startup work ──────────────────────────────────────────────────────────
-  void branches.seed(CANONICAL_BRANCHES);
+  void branches.seed(CANONICAL_BRANCHES).then(() => branches.retire(RETIRED_BRANCH_IDS));
   void onActivate(folder, catalog, settings, scaffold, health, setupManager, sidebar);
 }
 
@@ -63,6 +68,14 @@ async function onActivate(
   setupManager: SetupManager,
   sidebar: SidebarProvider
 ): Promise<void> {
+  await setupManager.refreshRegisteredMcp();
+
+  const projectService = folder ? new ProjectService(folder.uri.fsPath) : undefined;
+  if (projectService && (await settings.read()).activeAiTools.length === 0) {
+    const detectedTools = await projectService.detectAiTools();
+    if (detectedTools.length) await settings.setActiveAiTools(detectedTools);
+  }
+
   // ── First-time / pending setup ────────────────────────────────────────────
   if (await setupManager.hasPendingSteps()) {
     const answer = await vscode.window.showInformationMessage(
@@ -80,7 +93,12 @@ async function onActivate(
     return;
   }
 
-  // ── Register project in catalog ───────────────────────────────────────────
+  // ── Adopt existing projects and register them in the catalog ─────────────
+  const activeTools = (await settings.read()).activeAiTools;
+  if (projectService && await projectService.hasHarbormasterFootprint()) {
+    await projectService.adopt(folder.name, activeTools);
+  }
+
   const projectStore = new ProjectStore(folder.uri);
   const config = await projectStore.read();
   if (config) {
@@ -94,7 +112,6 @@ async function onActivate(
     );
 
     // Ensure entrypoint files for any newly configured AI tools
-    const activeTools = (await settings.read()).activeAiTools;
     await scaffold.ensureEntrypoints(folder.uri, config.project_name || folder.name, activeTools);
   }
 

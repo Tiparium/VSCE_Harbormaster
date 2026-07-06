@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import type { ProjectConfig, ProjectAccent } from '../types/project';
 import { migrateProjectConfig } from './migration';
 
-const DEFAULT_CONFIG_PATH = '.harbormaster/.meta/project.json';
+const DEFAULT_CONFIG_PATH = '.harbormaster/project.json';
 
 export class ProjectStore {
   constructor(
@@ -14,6 +14,14 @@ export class ProjectStore {
     return vscode.Uri.joinPath(this.workspaceUri, this.configPath);
   }
 
+  get workspacePath(): string {
+    return this.workspaceUri.fsPath;
+  }
+
+  get configRelativePath(): string {
+    return this.configPath;
+  }
+
   async read(): Promise<ProjectConfig | null> {
     try {
       const content = await vscode.workspace.fs.readFile(this.configUri);
@@ -23,14 +31,6 @@ export class ProjectStore {
     } catch {
       return null;
     }
-  }
-
-  async write(config: ProjectConfig): Promise<void> {
-    await this.ensureDirectory(this.configUri);
-    await vscode.workspace.fs.writeFile(
-      this.configUri,
-      Buffer.from(JSON.stringify(config, null, 2) + '\n', 'utf8')
-    );
   }
 
   async exists(): Promise<boolean> {
@@ -52,30 +52,10 @@ export class ProjectStore {
     }
   }
 
-  createDefault(name: string): ProjectConfig {
-    return {
-      version: 1,
-      project_name: name,
-      project_version: '',
-      version_major: 0,
-      version_minor: 0,
-      version_patch: 0,
-      version_prerelease: '',
-      tags: [],
-      activeBranches: [],
-    };
-  }
-
-  private async ensureDirectory(uri: vscode.Uri): Promise<void> {
-    const segments = uri.path.split('/');
-    segments.pop();
-    const dirUri = uri.with({ path: segments.join('/') || '/' });
-    await vscode.workspace.fs.createDirectory(dirUri);
-  }
 }
 
 function normalizeProjectConfig(raw: Record<string, unknown>): ProjectConfig {
-  const accent = normalizeAccent(raw.accent);
+  const accent = normalizeAccent(raw.accent) ?? normalizeLegacyAccent(raw);
   return {
     version: typeof raw.version === 'number' ? raw.version : 1,
     project_name: coerceString(raw.project_name) ?? '',
@@ -90,6 +70,27 @@ function normalizeProjectConfig(raw: Record<string, unknown>): ProjectConfig {
       : [],
     ...(accent ? { accent } : {}),
   };
+}
+
+function normalizeLegacyAccent(raw: Record<string, unknown>): ProjectAccent | undefined {
+  const sections = isRecord(raw.window_accent_sections) ? raw.window_accent_sections : {};
+  const groups = isRecord(raw.window_accent_groups) ? raw.window_accent_groups : {};
+  const frame = firstString(sections.window, raw.window_accent);
+  const accent = firstString(sections.highlights, sections.harbormaster, sections.other, raw.window_accent);
+  const surface = firstString(groups.sidebar, groups.panel);
+  const result: ProjectAccent = {};
+  if (frame) result.frame = frame;
+  if (accent) result.accent = accent;
+  if (surface) result.surface = surface;
+  return Object.keys(result).length ? result : undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function firstString(...values: unknown[]): string | undefined {
+  return values.find((value): value is string => typeof value === 'string' && value.trim().length > 0);
 }
 
 function normalizeAccent(raw: unknown): ProjectAccent | undefined {

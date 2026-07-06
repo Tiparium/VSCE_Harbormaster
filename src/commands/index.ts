@@ -11,6 +11,8 @@ import { getPrimaryFolder } from '../utils/fileUtils';
 import { isGitRepo, snapshotHarbormaster } from '../utils/gitUtils';
 import { AI_TOOL_ENTRYPOINTS } from '../types/global';
 import type { AiTool } from '../types/global';
+import { ProjectService } from '../project/projectService';
+import { ProjectMigrationPlanner } from '../project/migration';
 
 export type CommandDeps = {
   catalog: CatalogStore;
@@ -56,8 +58,9 @@ export function registerCommands(
       const config = await projectStore.read();
       const activeTools = (await settings.read()).activeAiTools;
       const result = await scaffold.ensureEntrypoints(folder.uri, config?.project_name ?? folder.name, activeTools);
-      const msg = result.created.length
-        ? `Created: ${result.created.join(', ')}`
+      const changed = [...result.created, ...result.updated];
+      const msg = changed.length
+        ? `Updated: ${changed.join(', ')}`
         : 'Project state already complete.';
       void vscode.window.showInformationMessage(`Harbormaster: ${msg}`);
     }),
@@ -69,10 +72,9 @@ export function registerCommands(
     vscode.commands.registerCommand('harbormaster.clearAccent', async () => {
       const folder = getPrimaryFolder();
       if (!folder) return;
-      const config = await projectStore.read();
-      if (!config) return;
-      delete config.accent;
-      await projectStore.write(config);
+      await new ProjectService(folder.uri.fsPath).updateConfig((config) => {
+        delete config.accent;
+      });
       void vscode.window.showInformationMessage('Harbormaster: accent colors cleared.');
     }),
 
@@ -90,6 +92,24 @@ export function registerCommands(
 
     vscode.commands.registerCommand('harbormaster.manageMcp', async () => {
       if (setupManager) await setupManager.reconfigureMcp();
+    }),
+
+    vscode.commands.registerCommand('harbormaster.reviewMigration', async () => {
+      const folder = getPrimaryFolder();
+      if (!folder) {
+        void vscode.window.showErrorMessage('Harbormaster: No workspace folder open.');
+        return;
+      }
+      const activeTools = (await settings.read()).activeAiTools;
+      const plan = await new ProjectMigrationPlanner(folder.uri.fsPath).plan({
+        mode: 'migrate',
+        activeTools,
+      });
+      const document = await vscode.workspace.openTextDocument({
+        language: 'json',
+        content: JSON.stringify(plan, null, 2),
+      });
+      await vscode.window.showTextDocument(document, { preview: false });
     }),
 
     vscode.commands.registerCommand('harbormaster.snapshotState', async () => {
@@ -137,7 +157,7 @@ async function openProjectFromCatalog(catalog: CatalogStore): Promise<void> {
   await Promise.all(
     projects.map(async (p) => {
       const folderUri = vscode.Uri.file(p.path);
-      const configUri = vscode.Uri.joinPath(folderUri, '.harbormaster/.meta/project.json');
+      const configUri = vscode.Uri.joinPath(folderUri, '.harbormaster/project.json');
       if (!(await fileExists(folderUri)) || !(await fileExists(configUri))) {
         staleIds.add(p.id);
       }

@@ -3,7 +3,7 @@
   "displayName": "Harbormaster",
   "icon": "resources/harbormaster.png",
   "description": "Project-aware window titles, accent colors, and AI context management.",
-  "version": "3.0.0-alpha",
+  "version": "3.2.0-alpha",
   "publisher": "harbormaster",
   "repository": {
     "type": "git",
@@ -13,8 +13,12 @@
   "engines": {
     "vscode": "^1.85.0"
   },
-  "categories": ["Other"],
-  "activationEvents": ["onStartupFinished"],
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "viewsContainers": {
@@ -87,16 +91,16 @@
         "command": "harbormaster.manageMcp",
         "title": "Harbormaster: Manage MCP registration",
         "category": "Harbormaster"
+      },
+      {
+        "command": "harbormaster.reviewMigration",
+        "title": "Harbormaster: Review current project migration",
+        "category": "Harbormaster"
       }
     ],
     "configuration": {
       "title": "Harbormaster",
       "properties": {
-        "harbormaster.projectConfigFile": {
-          "type": "string",
-          "default": ".harbormaster/.meta/project.json",
-          "description": "Relative path to the per-project config file."
-        },
         "harbormaster.projectCreateDefaultFolder": {
           "type": "string",
           "default": "",
@@ -108,16 +112,20 @@
   "scripts": {
     "postinstall": "patch-package",
     "vscode:prepublish": "npm run compile",
-    "compile": "npm run compile:ext && npm run compile:webview",
-    "compile:ext": "tsc -p tsconfig.json",
+    "compile": "npm run typecheck && npm run typecheck:webview && npm run compile:ext && npm run compile:webview",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck:webview": "tsc -p tsconfig.webview.json --noEmit",
+    "compile:ext": "node scripts/build-extension.js",
     "compile:webview": "node scripts/build-webview.js",
     "watch": "concurrently \"npm run watch:ext\" \"npm run watch:webview\"",
-    "watch:ext": "tsc -w -p tsconfig.json",
+    "watch:ext": "node scripts/build-extension.js --watch",
     "watch:webview": "node scripts/build-webview.js --watch",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "lint": "echo \"No lint configured\""
+    "lint": "echo \"No lint configured\"",
+    "migration:plan": "esbuild src/project/migrationCli.ts --bundle --platform=node --outfile=/tmp/harbormaster-migration-plan.js && node /tmp/harbormaster-migration-plan.js migration/live-projects.json migration/live-migration-plan.json",
+    "migration:run": "esbuild src/project/migrationRunCli.ts --bundle --platform=node --outfile=/tmp/harbormaster-migration-run.js"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
